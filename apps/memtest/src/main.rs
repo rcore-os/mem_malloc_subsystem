@@ -13,9 +13,16 @@ fn test_vec() {
     const N: usize = 1_000_000;
     let mut v = Vec::with_capacity(N);
     for _ in 0..N {
+        //println!("vector push 1");
         v.push(rand::rand_u32());
     }
     v.sort();
+    /*
+    for _ in 0..N {
+        println!("vector push 2");
+        v.push(rand::rand_u32());
+    }
+    */
     for i in 0..N - 1 {
         assert!(v[i] <= v[i + 1]);
     }
@@ -26,8 +33,10 @@ fn test_btree_map() {
     const N: usize = 10_000;
     let mut m = BTreeMap::new();
     for _ in 0..N {
+        //println!("btree map string init");
         let value = rand::rand_u32();
         let key = alloc::format!("key_{value}");
+        //println!("btree map insert");
         m.insert(key, value);
     }
     for (k, v) in m.iter() {

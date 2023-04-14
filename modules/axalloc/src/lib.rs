@@ -7,10 +7,13 @@ extern crate alloc;
 
 mod page;
 
-use allocator::{AllocResult, BaseAllocator, ByteAllocator, PageAllocator};
-use allocator::{BitmapPageAllocator, SlabByteAllocator};
+use allocator::*;//{AllocResult, BaseAllocator, ByteAllocator, PageAllocator};
+//use allocator::{BitmapPageAllocator, SlabByteAllocator};
 use core::alloc::{GlobalAlloc, Layout};
 use spinlock::SpinNoIrq;
+//use allocator::{BasicAllocator};
+use basic_allocator::MemBlockNode;
+use core::mem::size_of;
 
 const PAGE_SIZE: usize = 0x1000;
 const MIN_HEAP_SIZE: usize = 0x8000; // 32 K
@@ -18,14 +21,18 @@ const MIN_HEAP_SIZE: usize = 0x8000; // 32 K
 pub use page::GlobalPage;
 
 pub struct GlobalAllocator {
-    balloc: SpinNoIrq<SlabByteAllocator>,
+    //balloc: SpinNoIrq<SlabByteAllocator>,
+    balloc: SpinNoIrq<BasicAllocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
+
+
 }
 
 impl GlobalAllocator {
     pub const fn new() -> Self {
         Self {
-            balloc: SpinNoIrq::new(SlabByteAllocator::new()),
+            //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
+            balloc: SpinNoIrq::new(BasicAllocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
     }
@@ -45,14 +52,17 @@ impl GlobalAllocator {
     }
 
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
+        debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
         loop {
             if let Ok(ptr) = balloc.alloc(size, align_pow2) {
+                debug!("successfully alloc ptr: {:#x}",ptr);
                 return Ok(ptr);
             } else {
                 let old_size = balloc.total_bytes();
-                let expand_size = old_size.max(size).next_power_of_two().max(PAGE_SIZE);
+                //申请时要比原始size大一点
+                let expand_size = old_size.max(size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
                 debug!(
                     "expand heap memory: [{:#x}, {:#x})",
@@ -65,7 +75,9 @@ impl GlobalAllocator {
     }
 
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
-        self.balloc.lock().dealloc(pos, size, align_pow2)
+        debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
+        self.balloc.lock().dealloc(pos, size, align_pow2);
+        debug!("successfully dealloc.");
     }
 
     pub fn alloc_pages(&self, num_pages: usize, align_pow2: usize) -> AllocResult<usize> {
@@ -122,6 +134,7 @@ fn handle_alloc_error(layout: Layout) -> ! {
 
 pub fn global_allocator() -> &'static GlobalAllocator {
     &GLOBAL_ALLOCATOR
+
 }
 
 pub fn global_init(start_vaddr: usize, size: usize) {

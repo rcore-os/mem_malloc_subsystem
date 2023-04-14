@@ -4,10 +4,12 @@
 mod bitmap;
 mod buddy;
 mod slab;
+mod basic;
 
 pub use bitmap::BitmapPageAllocator;
 pub use buddy::BuddyByteAllocator;
 pub use slab::SlabByteAllocator;
+pub use basic::BasicAllocator;
 
 /// The error type used for allocation.
 #[derive(Debug)]
