@@ -11,7 +11,7 @@ authors = ["Yuekai Jia <equation618@gmail.com>"]
 smp = ["axruntime/smp", "axhal/smp"]
 
 # Memory
-alloc = ["axruntime/alloc"]
+alloc = ["axruntime/alloc", "axio/alloc"]
 paging = ["axruntime/paging"]
 
 # Multi-task
@@ -19,11 +19,11 @@ multitask = ["axruntime/multitask", "axtask/multitask", "axsync/multitask"]
 sched_fifo = ["axtask/sched_fifo"]
 sched_rr = ["axtask/sched_rr"]
 
+# File system
+fs = ["alloc", "axruntime/fs", "dep:axfs"]
+
 # Networking
 net = ["axruntime/net", "dep:axnet"]
-
-# File system
-fs = ["axruntime/fs"]
 
 # Display
 display = ["axruntime/display", "dep:axdisplay"]
@@ -43,11 +43,14 @@ platform-qemu-virt-aarch64 = ["axhal/platform-qemu-virt-aarch64", "axdriver?/bus
 default = ["axtask?/sched_fifo"]
 
 [dependencies]
+spinlock = { path = "../../crates/spinlock" }
+axio = { path = "../../crates/axio" }
+axerrno = { path = "../../crates/axerrno" }
 axdisplay = { path = "../../modules/axdisplay", optional = true }
 axdriver = { path = "../../modules/axdriver", optional = true }
-axerror = { path = "../../modules/axerror" }
 axhal = { path = "../../modules/axhal" }
 axlog = { path = "../../modules/axlog" }
+axfs = { path = "../../modules/axfs", optional = true }
 axnet = { path = "../../modules/axnet", optional = true }
 axruntime = { path = "../../modules/axruntime" }
 axsync = { path = "../../modules/axsync", default-features = false, optional = true }
