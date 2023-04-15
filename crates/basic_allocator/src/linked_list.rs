@@ -18,7 +18,7 @@ pub struct MemBlockNode {
 
 #[derive(Copy, Clone)]
 pub struct LinkedList {
-    head: *mut MemBlockNode,
+    pub head: *mut MemBlockNode,
 }
 
 unsafe impl Send for LinkedList {}
@@ -67,7 +67,7 @@ impl LinkedList {
     /// Return an mutable iterator over the items in the list
     pub fn iter_mut(&mut self) -> IterMut {
         IterMut {
-            prev: &mut self.head as *mut *mut MemBlockNode as *mut MemBlockNode,
+            prev: ptr::null_mut(),//&mut self.head as *mut *mut MemBlockNode as *mut MemBlockNode,
             curr: self.head,
             list: self,
         }
@@ -94,7 +94,7 @@ impl<'a> Iterator for Iter<'a> {
             None
         } else {
             let item = self.curr;
-            let next = unsafe { (*item).nxt as *mut MemBlockNode };
+            let next = unsafe {(*item).nxt};
             self.curr = next;
             Some(item)
         }
@@ -112,10 +112,17 @@ impl ListNode {
     pub fn pop(self, list: &mut LinkedList) -> *mut MemBlockNode {
         // Skip the current one
         unsafe {
-            (*(self.prev)).nxt = (*(self.curr)).nxt;
+            //let tmp: usize = 0xffffffc080231240;
+            //log::debug!("{:#x}qwq{:#x}",*(tmp as *const usize),*((tmp + 8) as *const usize));
+            //log::debug!("{:#x}:::{:#x}",list.head as usize, &list.head as *const *mut MemBlockNode as usize);
+            //log::debug!("{:#x}qwq{:#x}",*(tmp as *const usize),*((tmp + 8) as *const usize));
             if list.head == self.curr {
                 list.head = (*(self.curr)).nxt;
+            } else {
+                (*(self.prev)).nxt = (*(self.curr)).nxt;
             }
+            //log::debug!("{:#x}qwq{:#x}",*(tmp as *const usize),*((tmp + 8) as *const usize));
+            //log::debug!("{:#x}:::{:#x}",list.head as usize, &list.head as *const *mut MemBlockNode as usize);
         }
         self.curr
     }
@@ -155,7 +162,7 @@ impl<'a> Iterator for IterMut<'a> {
                 curr: self.curr,
             };
             self.prev = self.curr;
-            self.curr = unsafe { (*(self.curr)).nxt as *mut MemBlockNode };
+            self.curr = unsafe {(*(self.curr)).nxt};
             Some(res)
         }
     }

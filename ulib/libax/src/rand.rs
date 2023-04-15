@@ -11,3 +11,7 @@ pub fn rand_u32() -> u32 {
     SEED.store(new_seed, SeqCst);
     (new_seed >> 33) as u32
 }
+
+pub fn rand_usize() -> usize {
+    ((rand_u32() as usize) << 32) | (rand_u32() as usize)
+}

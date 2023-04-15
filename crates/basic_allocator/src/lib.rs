@@ -120,7 +120,7 @@ impl Heap {
     /// The runtime is in `O(1)` for chunks of size <= 4096, and `O(n)` when chunk size is > 4096,
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
         let size = max(
-            layout.size().next_power_of_two(),
+            layout.size(),
             max(layout.align(), size_of::<usize>()),
         );
         unsafe{
@@ -139,7 +139,6 @@ impl Heap {
                     if addr_left > size_of::<MemBlockNode>() + size_of::<usize>() {//还能切出去更小的块
                         inner.change_size(block_size - addr_left);
                         inner.pop(&mut self.free_list);
-                        //self.debug_memblock();
                         self.user += layout.size();
                         self.allocated += block_size - addr_left;
                         //一定不会merge
@@ -152,7 +151,6 @@ impl Heap {
 
                     //在前一个位置写入头部大小
                     *((addr - size_of::<usize>()) as *mut usize) = addr - res;
-
                     //self.debug_memblock();
                     Ok(addr)
                 },
@@ -164,32 +162,41 @@ impl Heap {
     /// push a memblock to linked list
     /// before push,need to check merge
     pub unsafe fn push_mem_block(&mut self, addr: usize, size: usize) {
-        //先找:是否有一个块紧贴在它后面
         let mut now_addr = addr;
         let mut now_size = size;
-        for block in self.free_list.iter_mut() {
-            let baddr = block.value() as usize;
-            let bsize = block.size();
-            if now_addr + now_size == baddr {
-                now_size += bsize;
-                block.pop(&mut self.free_list);
-                break;
+        match self.strategy{
+            //first fit策略不合并相邻块
+            BasicAllocatorStrategy::FirstFitStrategy => {self.free_list.push(now_addr as *mut MemBlockNode, now_size);}
+            _ => {
+                //let mut cnt = 0;
+                //先找:是否有一个块紧贴在它后面
+                for block in self.free_list.iter_mut() {
+                    let baddr = block.value() as usize;
+                    let bsize = block.size();
+                    //cnt += 1;
+                    if now_addr + now_size == baddr {
+                        now_size += bsize;
+                        block.pop(&mut self.free_list);
+                        break;
+                    }
+                }
+                
+                //再找:是否有一个块紧贴在它前面
+                for block in self.free_list.iter_mut() {
+                    let baddr = block.value() as usize;
+                    let bsize = block.size();
+                    //cnt += 1;
+                    if baddr + bsize == now_addr{
+                        now_addr = baddr;
+                        now_size += bsize;
+                        block.pop(&mut self.free_list);
+                        break;
+                    }
+                }
+                //log::debug!("{:#?}",cnt);
+                self.free_list.push(now_addr as *mut MemBlockNode, now_size);
             }
         }
-        
-        //再找:是否有一个块紧贴在它前面
-        for block in self.free_list.iter_mut() {
-            let baddr = block.value() as usize;
-            let bsize = block.size();
-            if baddr + bsize == now_addr{
-                now_addr = baddr;
-                now_size += bsize;
-                block.pop(&mut self.free_list);
-                break;
-            }
-        }
-
-        self.free_list.push(now_addr as *mut MemBlockNode, now_size);
     }  
 
     /// Frees the given allocation. `ptr` must be a pointer returned
@@ -206,7 +213,7 @@ impl Heap {
     pub unsafe fn deallocate(&mut self, ptr: usize, layout: Layout) {
         //log::debug!("deallocate: ptr = {:#x}, size = {:#?}",ptr,layout.size());
         let size = max(
-            layout.size().next_power_of_two(),
+            layout.size(),
             max(layout.align(), size_of::<usize>()),
         );
         let head_size = *((ptr - size_of::<usize>()) as *mut usize);
@@ -234,11 +241,16 @@ impl Heap {
     }
 
     pub unsafe fn debug_memblock(&mut self) {
+        //log::debug!("mem debug begin******************");
+        let mut cnt = 0;
         for block in self.free_list.iter_mut() {
             let baddr = block.value() as usize;
             let bsize = block.size();
-            log::debug!("mem block: baddr = {:#x}, bsize = {:#?}, nxt = {:#x}",baddr,bsize,(*(baddr as *mut MemBlockNode)).nxt as usize);
+            cnt = cnt + 1;
+            //log::debug!("mem block: baddr = {:#x}, bsize = {:#?}, nxt = {:#x}",baddr,bsize,(*(baddr as *mut MemBlockNode)).nxt as usize);
         }
+        log::debug!("mem debug end: cnt = {:#?}, total = {:#?}, used = {:#?}, available = {:#?}"
+            ,cnt,self.total_bytes(),self.used_bytes(),self.available_bytes());
     }
 
 }

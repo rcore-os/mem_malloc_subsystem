@@ -1253,6 +1253,7 @@ name = "slab_allocator"
 version = "0.3.1"
 dependencies = [
  "buddy_system_allocator",
+ "log",
 ]
 
 [[package]]

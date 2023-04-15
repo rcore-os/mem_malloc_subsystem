@@ -52,35 +52,35 @@ impl GlobalAllocator {
     }
 
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
-        debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
+        //debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
         loop {
             if let Ok(ptr) = balloc.alloc(size, align_pow2) {
-                debug!("successfully alloc ptr: {:#x}",ptr);
+                //debug!("successfully alloc ptr: {:#x}",ptr);
                 return Ok(ptr);
             } else {
+                //debug!("try to expand heap");
                 let old_size = balloc.total_bytes();
                 //申请时要比原始size大一点
-                let expand_size = old_size.max(size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
+                let expand_size = (size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
+                //为什么要每次翻倍？
+                //let expand_size = old_size.max(size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
-                debug!(
-                    "expand heap memory: [{:#x}, {:#x})",
-                    heap_ptr,
-                    heap_ptr + expand_size
-                );
+                debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
                 balloc.add_memory(heap_ptr, expand_size)?;
             }
         }
     }
 
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
-        debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
+        //debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
         self.balloc.lock().dealloc(pos, size, align_pow2);
-        debug!("successfully dealloc.");
+        //debug!("successfully dealloc.");
     }
 
     pub fn alloc_pages(&self, num_pages: usize, align_pow2: usize) -> AllocResult<usize> {
+        //log::debug!("alloc pages: {:#?}",num_pages);
         self.palloc.lock().alloc_pages(num_pages, align_pow2)
     }
 

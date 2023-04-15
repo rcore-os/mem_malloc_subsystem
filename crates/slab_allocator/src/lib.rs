@@ -163,6 +163,18 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub unsafe fn deallocate(&mut self, ptr: usize, layout: Layout) {
+        /*
+        match Heap::layout_to_allocator(&layout) {
+            HeapAllocator::Slab64Bytes => log::debug!("64"),
+            HeapAllocator::Slab128Bytes => log::debug!("128"),
+            HeapAllocator::Slab256Bytes => log::debug!("256"),
+            HeapAllocator::Slab512Bytes => log::debug!("512"),
+            HeapAllocator::Slab1024Bytes => log::debug!("1024"),
+            HeapAllocator::Slab2048Bytes => log::debug!("2048"),
+            HeapAllocator::Slab4096Bytes => log::debug!("4096"),
+            HeapAllocator::BuddyAllocator => log::debug!("buddy"),
+        }
+        */
         match Heap::layout_to_allocator(&layout) {
             HeapAllocator::Slab64Bytes => self.slab_64_bytes.deallocate(ptr),
             HeapAllocator::Slab128Bytes => self.slab_128_bytes.deallocate(ptr),
@@ -194,7 +206,8 @@ impl Heap {
 
     ///Finds allocator to use based on layout size and alignment
     pub fn layout_to_allocator(layout: &Layout) -> HeapAllocator {
-        if layout.size() > 4096 {
+        if layout.size() > 4096  //|| true // always buddy
+        { 
             HeapAllocator::BuddyAllocator
         } else if layout.size() <= 64 && layout.align() <= 64 {
             HeapAllocator::Slab64Bytes
