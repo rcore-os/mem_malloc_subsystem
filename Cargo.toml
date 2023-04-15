@@ -55,5 +55,4 @@ members = [
     "modules/axtask",
 
     "ulib/libax",
-    "ulib/c_libax/libax_bindings",
 ]
