@@ -12,7 +12,6 @@ use allocator::*;//{AllocResult, BaseAllocator, ByteAllocator, PageAllocator};
 use core::alloc::{GlobalAlloc, Layout};
 use spinlock::SpinNoIrq;
 //use allocator::{BasicAllocator};
-use basic_allocator::MemBlockNode;
 use core::mem::size_of;
 
 const PAGE_SIZE: usize = 0x1000;
@@ -52,6 +51,8 @@ impl GlobalAllocator {
     }
 
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
+        //默认alloc请求都是8对齐
+        assert!(align_pow2 <= size_of::<usize>());
         //debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
@@ -61,11 +62,11 @@ impl GlobalAllocator {
                 return Ok(ptr);
             } else {
                 //debug!("try to expand heap");
-                let old_size = balloc.total_bytes();
+                //let old_size = balloc.total_bytes();
                 //申请时要比原始size大一点
-                let expand_size = (size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
+                let expand_size = (size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 //为什么要每次翻倍？
-                //let expand_size = old_size.max(size + size_of::<MemBlockNode>() + size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
+                //let expand_size = old_size.max(size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
                 debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
                 balloc.add_memory(heap_ptr, expand_size)?;

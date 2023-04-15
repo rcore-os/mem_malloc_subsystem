@@ -27,7 +27,8 @@ fn test_vec(n: usize) {
 fn test_btree_map(n: usize) {
     //const N: usize = 20;
     let mut m = BTreeMap::new();
-    for i in 0..n {
+    for _ in 0..n {
+        //println!("test btree map: {:#?}",i);
         if rand::rand_usize() % 5 == 0 && !m.is_empty() {
             m.pop_first();
         } else {
@@ -35,6 +36,7 @@ fn test_btree_map(n: usize) {
             let key = alloc::format!("key_{value}");
             m.insert(key, value);
         }
+        //if i > 1 {break;}
     }
     for (k, v) in m.iter() {
         if let Some(k) = k.strip_prefix("key_") {
@@ -48,7 +50,7 @@ fn test_btree_map(n: usize) {
 fn test_vec_2(n: usize, m: usize){
     //let mut v = Vec::with_capacity(N);
     let mut v:Vec<Vec<usize>> = Vec::new();
-    for i in 0..n {
+    for _ in 0..n {
         //println!("vector push {:#?}",i);
         let mut tmp: Vec<usize> = Vec::with_capacity(m);
         for _ in 0..m {
@@ -104,7 +106,9 @@ fn main() {
     test_vec_2(7500,520);
     //test_vec_2(10000,32);
 
+    //test_btree_map(3);
     //test_btree_map(10000);
-    test_btree_map(20000);
+    //test_btree_map(20000);
+    test_btree_map(100000);
     println!("Memory tests run OK!");
 }
