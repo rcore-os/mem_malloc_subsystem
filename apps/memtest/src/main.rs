@@ -99,9 +99,12 @@ fn main() {
     //test_vec_2(20000,4);
     //test_vec_2(10000,32);
     //test_vec_2(5000,64);
-    test_vec_2(20000,64);
-    //test_vec_2(30000,64);
+    //test_vec_2(20000,64);
+    test_vec_2(30000,64);
 
+    //test_vec_2(100000,4);
+
+    //test_vec_2(20000,64);
 
     test_vec_2(7500,520);
     //test_vec_2(10000,32);
@@ -109,6 +112,7 @@ fn main() {
     //test_btree_map(3);
     //test_btree_map(10000);
     //test_btree_map(20000);
+    //test_btree_map(50000);
     test_btree_map(100000);
     println!("Memory tests run OK!");
 }

@@ -3,6 +3,7 @@
 
 extern crate alloc;
 
+use alloc::vec::Vec;
 use alloc::alloc::{AllocError, Layout};
 use core::mem::size_of;
 pub mod linked_list;
@@ -24,9 +25,9 @@ pub struct Heap {
     begin_addr: usize, //堆区起始地址
     end_addr: usize, //堆区结束地址
 
-    //处理kernel page table，这会在开始时连续申请若干页，形如在堆空间中挖了一个洞
-    kernel_begin: usize,
-    kernel_end: usize,
+    //处理kernel page table，对此的申请是不经过这里的，这会形如在堆空间中挖了一个洞
+    kernel_begin: Vec<usize>,
+    kernel_end: Vec<usize>,
 }
 
 /// 获取一个地址加上一个usize(分配出去的块的头)大小后对齐到align的结果
@@ -55,8 +56,8 @@ impl Heap {
             begin_addr: 0,
             end_addr: 0,
 
-            kernel_begin: 0,
-            kernel_end: 0,
+            kernel_begin: Vec::new(),
+            kernel_end: Vec::new(),
         }
     }
 
@@ -87,9 +88,9 @@ impl Heap {
     pub unsafe fn add_memory(&mut self, start_addr: usize, heap_size: usize) {
         //log::debug!("begin addr: {:#x}, end addr: {:#x}",self.begin_addr,self.end_addr);
         if start_addr != self.end_addr{
-            assert!(self.kernel_begin == 0 && self.kernel_end == 0,"Kernel page table error");
-            self.kernel_begin = self.end_addr;
-            self.kernel_end = start_addr;
+            //assert!(self.kernel_begin == 0 && self.kernel_end == 0,"Kernel page table error");
+            self.kernel_begin.push(self.end_addr);
+            self.kernel_end.push(start_addr);
         }
         assert!(
             start_addr % 4096 == 0,
@@ -111,7 +112,7 @@ impl Heap {
         while !block.is_null(){
             let addr = block as usize;
             let bsize = (*block).size();
-            if addr + bsize >= get_aligned(addr, align) + size {
+            if addr + bsize >= get_aligned(addr, align) + size + size_of::<usize>(){
                 return Some(block);
             }
             block = (*block).nxt;
@@ -221,7 +222,7 @@ impl Heap {
         //log::debug!("1:::now_addr: {:#x}, now_size: {:#?}",now_addr,now_size);
 
         //先找:是否有一个块紧贴在它后面
-        if now_addr + now_size != self.end_addr && now_addr + now_size != self.kernel_begin {
+        if now_addr + now_size != self.end_addr && !self.kernel_begin.contains(&(now_addr + now_size)) {
             let nxt_block = (now_addr + now_size) as *mut MemBlockHead;
             //log::debug!("end_addr: {:#x}, nxt_block: {:#x}",self.end_addr,nxt_block as usize);
             if !(*nxt_block).used() {
@@ -235,7 +236,7 @@ impl Heap {
         //log::debug!("2:::now_addr: {:#x}, now_size: {:#?}",now_addr,now_size);
 
         //再找:是否有一个块紧贴在它前面
-        if now_addr != self.begin_addr && now_addr != self.kernel_end {
+        if now_addr != self.begin_addr && !self.kernel_end.contains(&(now_addr)) {
             let pre_block = (*((now_addr - size_of::<usize>()) as *mut MemBlockFoot)).get_head();
             //log::debug!("end_addr: {:#x}, pre_block: {:#x}",self.end_addr,pre_block as usize);
             if !(*pre_block).used() {
@@ -300,7 +301,7 @@ impl Heap {
         //let tmp: usize = 0xffffffc080276b90;log::debug!("{:#?}",(*(tmp as *mut MemBlockHead)).size());
         log::debug!("mem debug begin: {:#x}",self.free_list.head as usize);
         log::debug!("begin addr: {:#x}, end addr: {:#x}",self.begin_addr,self.end_addr);
-        log::debug!("kernel begin: {:#x}, kernel end: {:#x}",self.kernel_begin,self.kernel_end);
+        //log::debug!("kernel begin: {:#x}, kernel end: {:#x}",self.kernel_begin,self.kernel_end);
         let mut cnt = 0;
         let mut block = self.free_list.head;
         while !block.is_null(){
