@@ -24,6 +24,7 @@ pub struct Heap {
     begin_addr: usize, //堆区起始地址
     end_addr: usize, //堆区结束地址
 
+    //处理kernel page table，这会在开始时连续申请若干页，形如在堆空间中挖了一个洞
     kernel_begin: usize,
     kernel_end: usize,
 }
