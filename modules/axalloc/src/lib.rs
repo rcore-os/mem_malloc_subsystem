@@ -71,7 +71,7 @@ impl GlobalAllocator {
                 //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
                 //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
                 //balloc.add_memory(heap_ptr, expand_size)?;
-
+                
                 //怀疑原先的alloc_pages有bug，当前暂且采用每次分配一个page的方法
                 for _ in 0..expand_size / PAGE_SIZE {
                     let heap_ptr = self.alloc_pages(1, PAGE_SIZE)?;

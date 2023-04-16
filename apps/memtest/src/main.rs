@@ -88,6 +88,37 @@ fn test_vec_2(n: usize, m: usize){
     println!("test_vec2() OK!");
 }
 
+fn test_vec_3(n: usize,k1: usize, k2: usize){
+    let mut v:Vec<Vec<usize>> = Vec::new();
+    for i in 0..n * 4{
+        let nw = match i >= n * 2 {
+            true => k1,
+            false => match i % 2 {
+                0 => k1,
+                _ => k2,
+            },
+        };
+        v.push(Vec::with_capacity(nw));
+        for _ in 0..nw {
+            v[i].push(rand::rand_usize());
+        }
+    }
+    for i in 0..n * 4{
+        if i % 2 == 1 {
+            let tmp: Vec<usize> = Vec::new();
+            v[i] = tmp;
+        }
+    }
+    for i in 0..n {
+        let nw = k2;
+        v.push(Vec::with_capacity(nw));
+        for _ in 0..nw {
+            v[4 * n + i].push(rand::rand_usize());
+        }
+    }
+    println!("test_vec3() OK!");
+}
+
 #[no_mangle]
 fn main() {
     println!("Running memory tests...");
@@ -114,5 +145,8 @@ fn main() {
     //test_btree_map(20000);
     //test_btree_map(50000);
     test_btree_map(100000);
+
+    //test_vec_3(5000,8,16);
+    test_vec_3(10000,32,64);
     println!("Memory tests run OK!");
 }
