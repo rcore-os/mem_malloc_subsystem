@@ -86,9 +86,11 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub unsafe fn add_memory(&mut self, start_addr: usize, heap_size: usize) {
-        //log::debug!("begin addr: {:#x}, end addr: {:#x}",self.begin_addr,self.end_addr);
+        //log::debug!("begin addr: {:#x}, end addr: {:#x}, size: {:#?}",start_addr,start_addr + heap_size,heap_size);
         if start_addr != self.end_addr{
             //assert!(self.kernel_begin == 0 && self.kernel_end == 0,"Kernel page table error");
+            //log::debug!("begin addr: {:#x}, end addr: {:#x}, size: {:#?}",start_addr,start_addr + heap_size,heap_size);
+            //log::debug!("kernel page table: begin = {:#x}, end = {:#x}",self.end_addr,start_addr);
             self.kernel_begin.push(self.end_addr);
             self.kernel_end.push(start_addr);
         }

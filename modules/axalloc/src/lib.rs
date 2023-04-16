@@ -67,9 +67,18 @@ impl GlobalAllocator {
                 let expand_size = (size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 //为什么要每次翻倍？
                 //let expand_size = old_size.max(size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
-                let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
-                debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
-                balloc.add_memory(heap_ptr, expand_size)?;
+                
+                //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
+                //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
+                //balloc.add_memory(heap_ptr, expand_size)?;
+
+                //怀疑原先的alloc_pages有bug，当前暂且采用每次分配一个page的方法
+                for _ in 0..expand_size / PAGE_SIZE {
+                    let heap_ptr = self.alloc_pages(1, PAGE_SIZE)?;
+                    //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,PAGE_SIZE);
+                    balloc.add_memory(heap_ptr, PAGE_SIZE)?;
+                }
+                
             }
         }
     }
