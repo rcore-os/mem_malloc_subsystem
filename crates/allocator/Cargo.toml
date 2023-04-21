@@ -12,3 +12,6 @@ bitmap-allocator = { git = "https://github.com/rcore-os/bitmap-allocator.git", r
 slab_allocator = { path = "../slab_allocator" }
 basic_allocator = { path = "../basic_allocator" }
 log = "0.4"
+[dev-dependencies]
+spin = "0.9"
+axlog = {path = "../../modules/axlog", features = ["std"]}

@@ -15,11 +15,13 @@ dependencies = [
 name = "allocator"
 version = "0.1.0"
 dependencies = [
+ "axlog",
  "basic_allocator",
  "bitmap-allocator",
  "buddy_system_allocator",
  "log",
  "slab_allocator",
+ "spin",
 ]
 
 [[package]]
