@@ -3,7 +3,7 @@
 //! TODO
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
-use core::alloc::Layout;
+use core::{alloc::Layout};
 use basic_allocator::Heap;
 
 
@@ -22,6 +22,10 @@ impl BasicAllocator {
 
     fn inner(&self) -> &Heap {
         self.inner.as_ref().unwrap()
+    }
+
+    pub fn set_strategy(&mut self,strategy: &str) {
+        self.inner_mut().set_strategy(strategy);
     }
 }
 

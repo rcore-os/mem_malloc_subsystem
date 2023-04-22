@@ -78,6 +78,17 @@ impl Heap {
         //self.debug_memblock();
     }
 
+    ///set strategy
+    pub fn set_strategy(&mut self,strategy: &str){
+        match strategy{
+            "first_fit" => {self.strategy = BasicAllocatorStrategy::FirstFitStrategy;}
+            "best_fit" => {self.strategy = BasicAllocatorStrategy::BestFitStrategy;}
+            "worst_fit" => {self.strategy = BasicAllocatorStrategy::WorstFitStrategy;}
+            _ => {panic!("unknown basic alloc strategy!");}
+        }
+        
+    }
+
     /// Adds memory to the heap. The start address must be valid
     /// and the memory in the `[mem_start_addr, mem_start_addr + heap_size)` range must not be used for
     /// anything else.

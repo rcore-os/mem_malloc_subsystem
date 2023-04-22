@@ -1,10 +1,11 @@
 mod basic_test;
+mod tlsf_c;
 use basic_test::*;
 use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator};
 use std::alloc::{GlobalAlloc, Layout, System};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use std::mem::size_of;
-
+use tlsf_c::TlsfCAllocator;
 
 use core::{panic};
 use spin::Mutex;
@@ -13,6 +14,7 @@ pub enum AllocType{
     BasicAlloc,
     BuddyAlloc,
     SlabAlloc,
+    TlsfCAlloc,
 }
 
 pub struct GlobalAllocator {
@@ -20,6 +22,7 @@ pub struct GlobalAllocator {
     basic_alloc: Mutex<BasicAllocator>,
     buddy_alloc: Mutex<BuddyByteAllocator>,
     slab_alloc: Mutex<SlabByteAllocator>,
+    tlsf_c_alloc: Mutex<TlsfCAllocator>,
     alloc_type: AllocType,
     heap_arddress: usize,
     heap_size: usize,
@@ -35,6 +38,7 @@ impl GlobalAllocator {
             basic_alloc: Mutex::new(BasicAllocator::new()),
             buddy_alloc: Mutex::new(BuddyByteAllocator::new()),
             slab_alloc: Mutex::new(SlabByteAllocator::new()),
+            tlsf_c_alloc: Mutex::new(TlsfCAllocator::new()),
             alloc_type: AllocType::SystemAlloc,
             heap_arddress: 0,
             heap_size: 0,
@@ -50,9 +54,11 @@ impl GlobalAllocator {
         self.alloc_type = AllocType::SystemAlloc;
     }
 
-    pub unsafe fn init_basic(&mut self) {
+    pub unsafe fn init_basic(&mut self,strategy: &str) {
         self.basic_alloc.lock().init(self.heap_arddress,self.heap_size);
+        self.basic_alloc.lock().set_strategy(strategy);
         self.alloc_type = AllocType::BasicAlloc;
+
     }
 
     pub unsafe fn init_buddy(&mut self) {
@@ -63,6 +69,11 @@ impl GlobalAllocator {
     pub unsafe fn init_slab(&mut self) {
         self.slab_alloc.lock().init(self.heap_arddress,self.heap_size);
         self.alloc_type = AllocType::SlabAlloc;
+    }
+
+    pub unsafe fn init_tlsf_c(&mut self) {
+        self.tlsf_c_alloc.lock().init(self.heap_arddress,self.heap_size);
+        self.alloc_type = AllocType::TlsfCAlloc;
     }
 
     pub unsafe fn alloc(&self, layout: Layout) -> AllocResult<usize> {
@@ -91,6 +102,13 @@ impl GlobalAllocator {
                     return Ok(ptr);
                 } else { panic!("alloc err: no memery.");}
             }
+            AllocType::TlsfCAlloc => {
+                if let Ok(ptr) = self.tlsf_c_alloc.lock().alloc(size, align_pow2) {
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
+
+
             _ => { panic!("unknown alloc type.");}
         }
         
@@ -113,6 +131,9 @@ impl GlobalAllocator {
             }
             AllocType::SlabAlloc => {
                 self.slab_alloc.lock().dealloc(pos, size, align_pow2);
+            }
+            AllocType::TlsfCAlloc => {
+                self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
             }
             _ => {
                 panic!("unknown alloc type.");
@@ -147,12 +168,34 @@ unsafe impl GlobalAlloc for GlobalAllocator {
 #[global_allocator]
 static mut GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();
 
+
+use std::ffi::c_int;
+pub type CallBack = unsafe extern fn(c_int) -> c_int;
+#[link(name = "test")]
+extern {
+    pub fn hello(a: c_int, cb: CallBack) -> c_int;
+}
+pub unsafe extern fn cb_func(x: c_int) -> c_int{
+    println!("hello rust! {:#?}",x);
+    return x * x + 1;
+}
+pub fn call_back_test(x: c_int){
+    unsafe{
+        let y = hello(x,cb_func);
+        println!("rust call_back test passed! {:#?}",y);
+    }
+    println!("*****************************");
+}
+
 #[test]
 fn test_start() {
     axlog::init();
     axlog::set_max_level("debug");
     unsafe{GLOBAL_ALLOCATOR.init_heap();}
+    call_back_test(233);
     println!("Running memory tests...");
+    
+    //return;
 
     //test_vec(1000000);
     
@@ -182,43 +225,52 @@ fn test_start() {
     //test_vec_3(5000,8,16);
     //test_vec_3(10000,32,64);
 
-    println!("basic alloc test:");
-    let t0 = std::time::Instant::now();
-    unsafe{GLOBAL_ALLOCATOR.init_basic();}
-    test_vec(3000000);
-    test_vec_2(30000,64);
-    test_vec_2(7500,520);
-    test_btree_map(100000);
-    test_vec_3(10000,32,64);
-    let t1 = std::time::Instant::now();
-    println!("time: {:#?}",t1 - t0);
-    println!("basic alloc test passed!");
+    println!("system alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+    basic_test();
+    println!("system test passed!");
+    println!("*****************************");
+
+    println!("first fit alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_basic("first_fit");}
+    basic_test();
+    println!("first fit alloc test passed!");
+    println!("*****************************");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+
+    println!("best fit alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_basic("best_fit");}
+    basic_test();
+    println!("best fit alloc test passed!");
+    println!("*****************************");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+
+    println!("worst fit alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_basic("worst_fit");}
+    basic_test();
+    println!("worst fit alloc test passed!");
+    println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
 
     println!("buddy alloc test:");
-    let t0 = std::time::Instant::now();
     unsafe{GLOBAL_ALLOCATOR.init_buddy();}
-    test_vec(3000000);
-    test_vec_2(30000,64);
-    test_vec_2(7500,520);
-    test_btree_map(100000);
-    test_vec_3(10000,32,64);
-    let t1 = std::time::Instant::now();
-    println!("time: {:#?}",t1 - t0);
+    basic_test();
     println!("buddy alloc test passed!");
+    println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
 
     println!("slab alloc test:");
-    let t0 = std::time::Instant::now();
     unsafe{GLOBAL_ALLOCATOR.init_slab();}
-    test_vec(3000000);
-    test_vec_2(30000,64);
-    test_vec_2(7500,520);
-    test_btree_map(100000);
-    test_vec_3(10000,32,64);
-    let t1 = std::time::Instant::now();
-    println!("time: {:#?}",t1 - t0);
+    basic_test();
     println!("slab alloc test passed!");
+    println!("*****************************");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+
+    println!("tlsf_c alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_tlsf_c();}
+    basic_test();
+    println!("tlsf_c alloc test passed!");
+    println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
 
 

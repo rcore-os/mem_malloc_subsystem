@@ -19,6 +19,7 @@ dependencies = [
  "basic_allocator",
  "bitmap-allocator",
  "buddy_system_allocator",
+ "libc",
  "log",
  "slab_allocator",
  "spin",
