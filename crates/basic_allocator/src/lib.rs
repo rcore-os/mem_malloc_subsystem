@@ -64,7 +64,7 @@ impl Heap {
     ///init
     pub unsafe fn init(&mut self, heap_start_addr: usize, heap_size: usize) {
         assert!(
-            heap_start_addr % 8 == 0,
+            heap_start_addr % 4096 == 0,
             "Start address should be page aligned"
         );
         assert!(
