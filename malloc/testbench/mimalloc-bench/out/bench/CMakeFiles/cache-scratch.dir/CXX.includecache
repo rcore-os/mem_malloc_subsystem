@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/cache-scratch/cache-scratch.cpp
+iostream
+-
+stdlib.h
+-
+pthread.h
+-
+

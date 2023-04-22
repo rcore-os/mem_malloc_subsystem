@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/rptest.dir/rptest/rptest.c.o CMakeFiles/rptest.dir/rptest/thread.c.o CMakeFiles/rptest.dir/rptest/timer.c.o  -o rptest  -lpthread -lm 

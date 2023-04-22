@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/glibc-bench/bench-malloc-simple.c
+pthread.h
+-
+stdio.h
+-
+stdlib.h
+-
+sys/resource.h
+-
+

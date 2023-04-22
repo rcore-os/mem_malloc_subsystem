@@ -1,0 +1,7 @@
+ff: master, 2f24ecf, https://github.com/bwickman97/ffmalloc
+gd: master, 9e85978, https://github.com/UTSASRG/Guarder
+hm: 11, 995ce07, https://github.com/GrapheneOS/hardened_malloc
+iso: 1.2.5, 2670d5f, https://github.com/struct/isoalloc
+lf: master, 915f51b, https://github.com/Begun/lockfree-malloc
+mi: v1.7.7, fe61be8, https://github.com/microsoft/mimalloc
+mng: master, 2ed5881, https://github.com/richfelker/mallocng-draft

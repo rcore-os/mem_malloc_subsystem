@@ -1,0 +1,1 @@
+/usr/bin/c++   -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/malloc-large.dir/malloc-large/malloc-large.cpp.o  -o malloc-large  -lpthread 

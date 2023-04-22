@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/invalid_free_unaligned_multiple_small.dir/invalid_free_unaligned_multiple.c.o  -o invalid_free_unaligned_multiple_small 

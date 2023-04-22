@@ -1,0 +1,23 @@
+*** /dev/null
+--- /dev/null
+***************
+*** 113
+- #include "smrtheap.h"
+--- 113,114 -----
++ // #include "smrtheap.h"
++ 
+***************
+*** 155
+- unsigned long ulCallCount = 1000;
+--- 156 -----
++ unsigned long ulCallCount = 10000;
+***************
+*** 232
+- 		unsigned uCPUs = promptAndRead("CPUs (0 for all)", 0, 'u');
+--- 242 -----
++ 		unsigned uCPUs = promptAndRead("CPUs (0 for all)", PROCS, 'u');
+***************
+*** 265
+- 		uThreadCount = (int)promptAndRead("threads", GetNumProcessors(), 'u');
+--- 275 -----
++ 		uThreadCount = (int)promptAndRead("threads", defaultThreadCount, 'u');

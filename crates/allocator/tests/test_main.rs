@@ -1,8 +1,9 @@
+#![feature(ptr_alignment_type)]
 mod basic_test;
 mod tlsf_c;
 use basic_test::*;
 use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator};
-use std::alloc::{GlobalAlloc, Layout, System};
+use std::{alloc::{GlobalAlloc, Layout, System}, ffi::c_ulonglong};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use std::mem::size_of;
 use tlsf_c::TlsfCAllocator;
@@ -187,6 +188,38 @@ pub fn call_back_test(x: c_int){
     println!("*****************************");
 }
 
+pub type CallBackMalloc = unsafe extern fn(size: c_ulonglong) -> c_ulonglong;
+pub type CallBackMallocAligned = unsafe extern fn(size: c_ulonglong,align: c_ulonglong) -> c_ulonglong;
+pub type CallBackFree = unsafe extern fn(ptr: c_ulonglong,size: c_ulonglong);
+#[link(name = "mitest")]
+extern {
+    pub fn mi_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+}
+pub unsafe extern fn cb_malloc_func(size: c_ulonglong) -> c_ulonglong{
+    if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize,8)){
+        return ptr as c_ulonglong;
+    }
+    panic!("alloc err.");
+}
+pub unsafe extern fn cb_malloc_aligned_func(size: c_ulonglong,align: c_ulonglong) -> c_ulonglong{
+    if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize,align as usize)){
+        return ptr as c_ulonglong;
+    }
+    panic!("alloc err.");
+}
+pub unsafe extern fn cb_free_func(ptr: c_ulonglong,size: c_ulonglong){
+    GLOBAL_ALLOCATOR.dealloc(ptr as usize, Layout::from_size_align_unchecked(size as usize,8));
+}
+pub fn mi_test(){
+    //return;
+    println!("Mi alloc test begin...");
+    let t0 = std::time::Instant::now();
+    unsafe{ mi_test_start(cb_malloc_func,cb_malloc_aligned_func,cb_free_func);}
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}",t1 - t0);
+    println!("Mi alloc test OK!");
+}
+
 #[test]
 fn test_start() {
     axlog::init();
@@ -194,46 +227,19 @@ fn test_start() {
     unsafe{GLOBAL_ALLOCATOR.init_heap();}
     call_back_test(233);
     println!("Running memory tests...");
-    
-    //return;
 
-    //test_vec(1000000);
-    
-    //test_vec(3000000);
-    
-    //test_vec_2(5000,32);
-    //test_vec_2(10000,4);
-    //test_vec_2(20000,4);
-    //test_vec_2(10000,32);
-    //test_vec_2(5000,64);
-    //test_vec_2(20000,64);
-    //test_vec_2(30000,64);
-
-    //test_vec_2(100000,4);
-
-    //test_vec_2(20000,64);
-
-    //test_vec_2(7500,520);
-    //test_vec_2(10000,32);
-
-    //test_btree_map(3);
-    //test_btree_map(10000);
-    //test_btree_map(20000);
-    //test_btree_map(50000);
-    //test_btree_map(100000);
-    
-    //test_vec_3(5000,8,16);
-    //test_vec_3(10000,32,64);
 
     println!("system alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
     basic_test();
+    mi_test();
     println!("system test passed!");
     println!("*****************************");
 
     println!("first fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("first_fit");}
     basic_test();
+    mi_test();
     println!("first fit alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
@@ -241,6 +247,7 @@ fn test_start() {
     println!("best fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("best_fit");}
     basic_test();
+    mi_test();
     println!("best fit alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
@@ -248,6 +255,7 @@ fn test_start() {
     println!("worst fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("worst_fit");}
     basic_test();
+    mi_test();
     println!("worst fit alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
@@ -255,6 +263,7 @@ fn test_start() {
     println!("buddy alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_buddy();}
     basic_test();
+    mi_test();
     println!("buddy alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
@@ -262,6 +271,7 @@ fn test_start() {
     println!("slab alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_slab();}
     basic_test();
+    mi_test();
     println!("slab alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
@@ -269,6 +279,7 @@ fn test_start() {
     println!("tlsf_c alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_tlsf_c();}
     basic_test();
+    mi_test();
     println!("tlsf_c alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}

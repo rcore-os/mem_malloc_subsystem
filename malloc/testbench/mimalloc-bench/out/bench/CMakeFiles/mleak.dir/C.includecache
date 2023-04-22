@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/mleak/mleak.c
+stdio.h
+-
+stdlib.h
+-
+stdint.h
+-
+stdbool.h
+-
+string.h
+-
+windows.h
+-
+pthread.h
+-
+atomic
+-
+stdatomic.h
+-
+

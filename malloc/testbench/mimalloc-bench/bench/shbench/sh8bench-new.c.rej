@@ -1,0 +1,42 @@
+*** /dev/null
+--- /dev/null
+***************
+*** 138
+- unsigned long ulIterations   =  100000;
+--- 138 -----
++ unsigned long ulIterations   =  700000;
+***************
+*** 194
+- 	
+--- 194,203 -----
++ 	#ifdef BENCH
++ 		fin = stdin;
++ 		fout = stdout;
++ 	  unsigned int defaultThreadCount = GetNumProcessors();
++ 		if (argc==2) {
++ 			char* end;
++ 			long l = strtol(argv[1],&end,10);
++ 			if (l != 0) defaultThreadCount = l;
++ 		}
++ 	#else
+***************
+*** 203
+- 	
+--- 212 -----
++ 	#endif
+***************
+*** 218
+- 		ulThreadCount = promptAndRead("threads", ulThreadCount, 'u');
+--- 227 -----
++ 		ulThreadCount = promptAndRead("threads", defaultThreadCount, 'u');
+***************
+*** 243
+- 		unsigned uCPUs = promptAndRead("CPUs (0 for all)", 0, 'u');
+--- 252 -----
++ 		unsigned uCPUs = promptAndRead("CPUs (0 for all)", GetNumProcessors(), 'u');
+***************
+*** 542
+- 			else if (!(*mp++ = (char *)malloc(size)))
+--- 551,552 -----
++ 			else {
++ 				if (!(*mp++ = (char *)malloc(size)))

@@ -1,0 +1,1 @@
+/usr/bin/c++   -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/cache-thrash.dir/cache-thrash/cache-thrash.cpp.o  -o cache-thrash  -lpthread 

@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/barnes.dir/barnes/code.c.o CMakeFiles/barnes.dir/barnes/code_io.c.o CMakeFiles/barnes.dir/barnes/load.c.o CMakeFiles/barnes.dir/barnes/grav.c.o CMakeFiles/barnes.dir/barnes/getparam.c.o CMakeFiles/barnes.dir/barnes/util.c.o  -o barnes  -lm 

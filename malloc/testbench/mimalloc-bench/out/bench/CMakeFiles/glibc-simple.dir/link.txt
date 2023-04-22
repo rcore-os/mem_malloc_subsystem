@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/glibc-simple.dir/glibc-bench/bench-malloc-simple.c.o  -o glibc-simple  -lpthread 

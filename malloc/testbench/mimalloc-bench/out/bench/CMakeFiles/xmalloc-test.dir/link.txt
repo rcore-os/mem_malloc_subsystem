@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/xmalloc-test.dir/xmalloc-test/xmalloc-test.c.o  -o xmalloc-test  -lpthread 

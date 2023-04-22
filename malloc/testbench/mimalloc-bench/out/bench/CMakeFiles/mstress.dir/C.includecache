@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/mstress/mstress.c
+alloc-bench-main.h
+-
+stdio.h
+-
+stdlib.h
+-
+stdint.h
+-
+stdbool.h
+-
+string.h
+-
+windows.h
+-
+pthread.h
+-
+stdatomic.h
+-
+

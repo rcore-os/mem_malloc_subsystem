@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/impossibly_large_malloc_small.dir/impossibly_large_malloc.c.o  -o impossibly_large_malloc_small 

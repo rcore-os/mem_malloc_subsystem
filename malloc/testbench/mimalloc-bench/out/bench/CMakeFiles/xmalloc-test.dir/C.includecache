@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/xmalloc-test/random.h
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/xmalloc-test/xmalloc-test.c
+errno.h
+-
+pthread.h
+-
+stdbool.h
+-
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+sys/stat.h
+-
+sys/time.h
+-
+sys/types.h
+-
+unistd.h
+-
+unistd.h
+-
+random.h
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/xmalloc-test/random.h
+

@@ -71,6 +71,9 @@ impl Heap {
             heap_size % 4096 == 0 && heap_size > 0,
             "Add Heap size should be a multiple of page size"
         );
+        self.free_list = LinkedList::new();
+        self.kernel_begin = Vec::new();
+        self.kernel_end = Vec::new();
         self.begin_addr = heap_start_addr;
         self.end_addr = heap_start_addr + heap_size;
         self.push_mem_block(heap_start_addr, heap_size);

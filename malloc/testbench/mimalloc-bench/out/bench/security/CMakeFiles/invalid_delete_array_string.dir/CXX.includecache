@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/security/common.h
+
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/security/invalid_delete_array_string.cc
+string
+-
+string.h
+-
+common.h
+/home/abc/桌面/git/arceos/malloc/testbench/mimalloc-bench/bench/security/common.h
+

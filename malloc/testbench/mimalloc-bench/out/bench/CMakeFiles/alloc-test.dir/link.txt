@@ -1,0 +1,1 @@
+/usr/bin/c++   -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/alloc-test.dir/alloc-test/test_common.cpp.o CMakeFiles/alloc-test.dir/alloc-test/allocator_tester.cpp.o  -o alloc-test  -lpthread 

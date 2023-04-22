@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/one_mbyte_overflow_small.dir/one_mbyte_overflow.c.o  -o one_mbyte_overflow_small 

@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/double_free_interleaved_medium.dir/double_free_interleaved.c.o  -o double_free_interleaved_medium 

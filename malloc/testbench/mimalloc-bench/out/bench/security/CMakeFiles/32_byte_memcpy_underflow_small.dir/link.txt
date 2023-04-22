@@ -1,0 +1,1 @@
+/usr/bin/cc  -w -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -O3 -DNDEBUG  -rdynamic CMakeFiles/32_byte_memcpy_underflow_small.dir/32_byte_memcpy_underflow.c.o  -o 32_byte_memcpy_underflow_small 
