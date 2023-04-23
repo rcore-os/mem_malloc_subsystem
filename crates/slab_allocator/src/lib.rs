@@ -24,7 +24,7 @@ use slab::Slab;
 const SET_SIZE: usize = 64;
 const MIN_HEAP_SIZE: usize = 0x8000;
 
-enum HeapAllocator {
+pub enum HeapAllocator {
     Slab64Bytes,
     Slab128Bytes,
     Slab256Bytes,

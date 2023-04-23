@@ -136,7 +136,7 @@ pub fn test_vec_3(n: usize,k1: usize, k2: usize){
 }
 
 pub fn basic_test() {
-    return;
+    //return;
     println!("Basic alloc test begin...");
     let t0 = std::time::Instant::now();
     test_vec(3000000);
