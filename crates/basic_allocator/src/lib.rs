@@ -178,8 +178,6 @@ impl Heap {
 
     /// Allocates a chunk of the given size with the given alignment. Returns a pointer to the
     /// beginning of that chunk if it was successful. Else it returns `Err`.
-    /// This function finds the slab of lowest size which can still accomodate the given chunk.
-    /// The runtime is in `O(1)` for chunks of size <= 4096, and `O(n)` when chunk size is > 4096,
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
         //log::debug!("qaq: {:#x}",self.free_list.head as usize);
         //let tmp: usize = 0xffffffc080276b90;log::debug!("{:#?}",(*(tmp as *mut MemBlockHead)).size());
@@ -272,10 +270,6 @@ impl Heap {
     /// Frees the given allocation. `ptr` must be a pointer returned
     /// by a call to the `allocate` function with identical size and alignment. Undefined
     /// behavior may occur for invalid arguments, thus this function is unsafe.
-    ///
-    /// This function finds the slab which contains address of `ptr` and adds the blocks beginning
-    /// with `ptr` address to the list of free blocks.
-    /// This operation is in `O(1)` for blocks <= 4096 bytes and `O(n)` for blocks > 4096 bytes.
     ///
     /// # Safety
     /// This function is unsafe because it can cause undefined behavior if the

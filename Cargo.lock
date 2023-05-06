@@ -23,6 +23,7 @@ dependencies = [
  "log",
  "slab_allocator",
  "spin",
+ "tlsf_allocator",
 ]
 
 [[package]]
@@ -1535,6 +1536,13 @@ dependencies = [
 [[package]]
 name = "timer_list"
 version = "0.1.0"
+
+[[package]]
+name = "tlsf_allocator"
+version = "0.1.0"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "tock-registers"

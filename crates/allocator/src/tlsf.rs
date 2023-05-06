@@ -1,17 +1,17 @@
-//! Basic memory allocation.
+//! TLSF memory allocation.
 //!
 //! 
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
-use core::{alloc::Layout};
-use basic_allocator::Heap;
+use core::alloc::Layout;
+use tlsf_allocator::Heap;
 
 
-pub struct BasicAllocator {
+pub struct TLSFAllocator {
     inner: Option<Heap>,
 }
 
-impl BasicAllocator {
+impl TLSFAllocator {
     pub const fn new() -> Self {
         Self { inner: None }
     }
@@ -23,13 +23,9 @@ impl BasicAllocator {
     fn inner(&self) -> &Heap {
         self.inner.as_ref().unwrap()
     }
-
-    pub fn set_strategy(&mut self,strategy: &str) {
-        self.inner_mut().set_strategy(strategy);
-    }
 }
 
-impl BaseAllocator for BasicAllocator {
+impl BaseAllocator for TLSFAllocator {
     fn init(&mut self, start: usize, size: usize){
         //log::debug!("init: start = {:#x}, size = {:#?}",start, size);
         self.inner = Some(Heap::new());
@@ -47,7 +43,7 @@ impl BaseAllocator for BasicAllocator {
     }
 }
 
-impl ByteAllocator for BasicAllocator {
+impl ByteAllocator for TLSFAllocator {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         //log::debug!("alloc: {:#?}",size);
         self.inner_mut()

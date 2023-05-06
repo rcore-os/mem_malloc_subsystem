@@ -2,13 +2,13 @@
 mod basic_test;
 mod tlsf_c;
 use basic_test::*;
-use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator};
+use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator, TLSFAllocator};
 use std::{alloc::{GlobalAlloc, Layout, System}, ffi::c_ulonglong};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use std::mem::size_of;
 use tlsf_c::TlsfCAllocator;
 
-use core::{panic};
+use core::panic;
 use spin::Mutex;
 pub enum AllocType{
     SystemAlloc,
@@ -16,14 +16,15 @@ pub enum AllocType{
     BuddyAlloc,
     SlabAlloc,
     TlsfCAlloc,
+    TlsfRustAlloc,
 }
 
 pub struct GlobalAllocator {
-    //balloc: SpinNoIrq<SlabByteAllocator>,
     basic_alloc: Mutex<BasicAllocator>,
     buddy_alloc: Mutex<BuddyByteAllocator>,
     slab_alloc: Mutex<SlabByteAllocator>,
     tlsf_c_alloc: Mutex<TlsfCAllocator>,
+    tlsf_rust_alloc: Mutex<TLSFAllocator>,
     alloc_type: AllocType,
     heap_arddress: usize,
     heap_size: usize,
@@ -40,6 +41,7 @@ impl GlobalAllocator {
             buddy_alloc: Mutex::new(BuddyByteAllocator::new()),
             slab_alloc: Mutex::new(SlabByteAllocator::new()),
             tlsf_c_alloc: Mutex::new(TlsfCAllocator::new()),
+            tlsf_rust_alloc: Mutex::new(TLSFAllocator::new()),
             alloc_type: AllocType::SystemAlloc,
             heap_arddress: 0,
             heap_size: 0,
@@ -77,6 +79,11 @@ impl GlobalAllocator {
         self.alloc_type = AllocType::TlsfCAlloc;
     }
 
+    pub unsafe fn init_tlsf_rust(&mut self) {
+        self.tlsf_rust_alloc.lock().init(self.heap_arddress,self.heap_size);
+        self.alloc_type = AllocType::TlsfRustAlloc;
+    }
+
     pub unsafe fn alloc(&self, layout: Layout) -> AllocResult<usize> {
         //默认alloc请求都是8对齐
         let size: usize = layout.size();
@@ -108,6 +115,11 @@ impl GlobalAllocator {
                     return Ok(ptr);
                 } else { panic!("alloc err: no memery.");}
             }
+            AllocType::TlsfRustAlloc => {
+                if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
 
 
             _ => { panic!("unknown alloc type.");}
@@ -135,6 +147,9 @@ impl GlobalAllocator {
             }
             AllocType::TlsfCAlloc => {
                 self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
+            }
+            AllocType::TlsfRustAlloc => {
+                self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
             }
             _ => {
                 panic!("unknown alloc type.");
@@ -229,6 +244,16 @@ fn test_start() {
     println!("Running memory tests...");
 
 
+    println!("tlsf_rust alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_tlsf_rust();}
+    basic_test();
+    mi_test();
+    println!("tlsf_rust alloc test passed!");
+    println!("*****************************");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+
+    return;
+
     println!("system alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
     basic_test();
@@ -283,7 +308,6 @@ fn test_start() {
     println!("tlsf_c alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
-
 
     println!("Memory tests run OK!");
 }
