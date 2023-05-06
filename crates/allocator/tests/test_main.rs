@@ -269,7 +269,6 @@ fn test_start() {
     println!("system test passed!");
     println!("*****************************");
 
-
     println!("tlsf_rust alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_tlsf_rust();}
     basic_test();
@@ -277,8 +276,6 @@ fn test_start() {
     println!("tlsf_rust alloc test passed!");
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
-
-    return;
 
     println!("first fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("first_fit");}

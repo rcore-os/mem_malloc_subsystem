@@ -138,7 +138,7 @@ unsafe fn get_fl_and_sl(size: usize, fl: *mut usize, sl: *mut usize){
     }
     else{
         *fl = (my_log2(size)) - FL_INDEX_SHIFT + 1;
-        *sl = (size >> ((*fl) + 2)) & 7;
+        *sl = (size >> ((*fl) + 2)) & (SL_INDEX_COUNT - 1);
     }
 }
 
@@ -174,6 +174,7 @@ fn get_up_fl_and_sl(size: usize, fl: *mut usize, sl: *mut usize) -> usize{
     let nsize = get_up_size(size);
     unsafe{
         get_fl_and_sl(nsize, fl, sl);
+        //log::debug!("get up fl and sl: {:#?} {:#?} {:#?} {:#?} {:#?}",size,*fl,*sl,nsize,get_block_begin_size(*fl, *sl));
     }
     return nsize;
 }
@@ -293,6 +294,7 @@ impl Controller{
                 return &mut self.block_null;
             }
         }
+        //log::debug!("find block: {:#?} {:#?} {:#?} {:#?}",size, fl, sl, get_block_begin_size(fl, sl));
         return self.get_first_block(fl,sl);
     }
 }
@@ -369,11 +371,12 @@ impl Heap {
         unsafe{
             let block = (*(self.head)).find_block(size);
             if !((*block).is_null()){
+                let nsize = (*block).get_size();
+                assert!(nsize >= size,"Alloc error");
                 let addr = (block as usize) + 2 * size_of::<usize>();
                 (*block).set_used();
                 
                 //把块的尾部拆分之后扔回去
-                let nsize = (*block).get_size();
                 if nsize >= size + 4 * size_of::<usize>(){//最小32字节才能切出一个新块
                     //新块
                     let new_block = (addr + size) as *mut BlockHeader;
