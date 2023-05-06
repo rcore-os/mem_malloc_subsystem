@@ -80,7 +80,7 @@ impl BlockHeader {
 
 ///获取一个块物理上的下一个块
 pub unsafe fn get_block_phy_next(block: *mut BlockHeader) -> *mut BlockHeader{
-    return ((block as usize) + (*block).get_size() + 16) as *mut BlockHeader;
+    return ((block as usize) + (*block).get_size() + 2 * size_of::<usize>()) as *mut BlockHeader;
 }
 ///获取一个块物理上的上一个块
 pub unsafe fn get_block_phy_prev(block: *mut BlockHeader) -> *mut BlockHeader{
@@ -199,6 +199,7 @@ impl Controller{
     /// add memory
     /// addr和size都应该是8对齐的
     pub unsafe fn add_memory(&mut self, addr: usize, size: usize){
+        //log::debug!("TLSF: add memory: {:#x} {:#?}",addr, size - 6 * size_of::<usize>());
         //第一个块
         let first = addr as *mut BlockHeader;
         (*first).prev_phy = &mut self.block_null;
@@ -317,6 +318,7 @@ impl Heap {
 
     ///init
     pub unsafe fn init(&mut self, heap_start_addr: usize, heap_size: usize) {
+        //log::debug!("TLSF: init addr = {:#x}, size = {:#x}",heap_start_addr,heap_size);
         assert!(
             heap_start_addr % 4096 == 0,
             "Start address should be page aligned"
@@ -357,7 +359,7 @@ impl Heap {
     /// Allocates a chunk of the given size with the given alignment. Returns a pointer to the
     /// beginning of that chunk if it was successful. Else it returns `Err`.
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
-        //log::debug!("allocate: size = {:#?}",layout.size());
+        //log::debug!("TLSF: allocate: size = {:#?}",layout.size());
         //单次分配最小16字节
         let size = alignto(max(
             layout.size(),
@@ -391,7 +393,7 @@ impl Heap {
                 }
                 self.used_mem += layout.size();
                 self.avail_mem -= (*block).get_size();
-                //log::debug!("successfully allocate: {:#x} {:#?}",addr,(*block).get_size());
+                //log::debug!("TLSF: successfully allocate: {:#x} {:#?}",addr,(*block).get_size());
                 return Ok(addr);
             }
             else{
@@ -403,13 +405,16 @@ impl Heap {
 
     /// 把这个块和物理上后一个块合并，要求两个块都是空闲的，且已经从链表中摘下来了
     pub unsafe fn merge_block(&self, block: *mut BlockHeader){
+        //log::debug!("TLSF: merge_block {:#x}",block as usize);
         let nxt = get_block_phy_next(block);
         //改block的size
-        let size = (*nxt).get_size();
+        let size = (*block).get_size();
         let nsize = (*nxt).get_size();
-        (*block).set_size(size + nsize - 2 * size_of::<usize>());
+        //log::debug!("{:#x} {:#x} {:#?} {:#?}",block as usize, nxt as usize, size, nsize);
+        (*block).set_size(size + nsize + 2 * size_of::<usize>());
         //改block.nxt.nxt的pre指针为block自己
         let nnxt = get_block_phy_next(nxt);
+        //log::debug!("{:#x}",nnxt as usize);
         if !((*nnxt).is_null()){
             (*nnxt).prev_phy = block;
         }
@@ -426,7 +431,7 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub unsafe fn deallocate(&mut self, ptr: usize, layout: Layout) {
-        //log::debug!("deallocate: ptr = {:#x}, size = {:#?}",ptr,layout.size());
+        //log::debug!("TLSF: deallocate: ptr = {:#x}, size = {:#?}",ptr,layout.size());
         //log::debug!("qaq: {:#x}",self.free_list.head as usize);
         let size = alignto(max(
             layout.size(),
@@ -444,6 +449,7 @@ impl Heap {
         let mut nblock = block;
         let pre = get_block_phy_prev(block);
         let nxt = get_block_phy_next(block);
+        //log::debug!("TLSF: dealloc block = {:#x}, pre = {:#x}, nxt = {:#x}",block as usize, pre as usize, nxt as usize);
         if !((*nxt).is_null()) && (*(nxt)).get_now_free(){
             //如果物理上的下一个块不是null且是空闲的，就合并
             (*(self.head)).del_into_list(nxt);
@@ -457,7 +463,10 @@ impl Heap {
             nblock = pre;
             self.avail_mem += 2 * size_of::<usize>();
         }
+        //log::debug!("TLSF: dealloc nblock = {:#x}",nblock as usize);
         (*(self.head)).add_into_list(nblock);
+
+        //log::debug!("TLSF: successfully deallocate.");
     }
 
     /// 查询内存使用情况

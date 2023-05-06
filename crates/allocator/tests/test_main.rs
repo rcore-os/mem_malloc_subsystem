@@ -98,11 +98,6 @@ impl GlobalAllocator {
             let ptr = System.alloc(layout);
             return Ok(ptr as usize);
         }
-        else{
-            flag = true;
-            log::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
-            flag = false;
-        }
 
         match self.alloc_type{
             AllocType::SystemAlloc => {
@@ -130,10 +125,11 @@ impl GlobalAllocator {
                 } else { panic!("alloc err: no memery.");}
             }
             AllocType::TlsfRustAlloc => {
+                //flag = true;
+                //log::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
                 if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
-                    flag = true;
-                    log::debug!("successfully alloc: {:#x}",ptr);
-                    flag = false;
+                    //log::debug!("successfully alloc: {:#x}",ptr);
+                    //flag = false;
                     return Ok(ptr);
                 } else { panic!("alloc err: no memery.");}
             }
@@ -151,14 +147,6 @@ impl GlobalAllocator {
             System.dealloc(pos as *mut u8, layout);
             return;
         }
-        else{
-            flag = true;
-            log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
-            flag = false;
-        }
-        //log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
-
-
 
         match self.alloc_type{
             AllocType::SystemAlloc => {
@@ -177,10 +165,11 @@ impl GlobalAllocator {
                 self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
             }
             AllocType::TlsfRustAlloc => {
+                //flag = true;
+                //log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
                 self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
-                flag = true;
-                log::debug!("successfully dealloc.");
-                flag = false;
+                //log::debug!("successfully dealloc.");
+                //flag = false;
             }
             _ => {
                 panic!("unknown alloc type.");
@@ -273,6 +262,14 @@ fn test_start() {
     call_back_test(233);
     println!("Running memory tests...");
 
+    println!("system alloc test:");
+    unsafe{GLOBAL_ALLOCATOR.init_system();}
+    basic_test();
+    mi_test();
+    println!("system test passed!");
+    println!("*****************************");
+
+
     println!("tlsf_rust alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_tlsf_rust();}
     basic_test();
@@ -282,13 +279,6 @@ fn test_start() {
     unsafe{GLOBAL_ALLOCATOR.init_system();}
 
     return;
-
-    println!("system alloc test:");
-    unsafe{GLOBAL_ALLOCATOR.init_system();}
-    basic_test();
-    mi_test();
-    println!("system test passed!");
-    println!("*****************************");
 
     println!("first fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("first_fit");}
