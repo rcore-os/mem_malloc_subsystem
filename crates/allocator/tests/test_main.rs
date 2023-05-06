@@ -32,7 +32,9 @@ pub struct GlobalAllocator {
 
 const PAGE_SIZE: usize = 1 << 12;
 const HEAP_SIZE: usize = 1 << 24;
-static mut HEAP: [usize; HEAP_SIZE + PAGE_SIZE] = [0;HEAP_SIZE + PAGE_SIZE];
+static mut HEAP: [usize; HEAP_SIZE + PAGE_SIZE] = [0; HEAP_SIZE + PAGE_SIZE];
+
+static mut flag: bool = false;
 
 impl GlobalAllocator {
     pub const fn new() -> Self {
@@ -89,7 +91,19 @@ impl GlobalAllocator {
         let size: usize = layout.size();
         let align_pow2: usize = layout.align();
         //assert!(align_pow2 <= size_of::<usize>());
-        //println!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
+        //println!("***");
+        //axlog::debug!("alloc");
+        //axlog::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
+        if flag{
+            let ptr = System.alloc(layout);
+            return Ok(ptr as usize);
+        }
+        else{
+            flag = true;
+            log::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
+            flag = false;
+        }
+
         match self.alloc_type{
             AllocType::SystemAlloc => {
                 let ptr = System.alloc(layout);
@@ -117,6 +131,9 @@ impl GlobalAllocator {
             }
             AllocType::TlsfRustAlloc => {
                 if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
+                    flag = true;
+                    log::debug!("successfully alloc: {:#x}",ptr);
+                    flag = false;
                     return Ok(ptr);
                 } else { panic!("alloc err: no memery.");}
             }
@@ -130,7 +147,18 @@ impl GlobalAllocator {
     pub unsafe fn dealloc(&self, pos: usize, layout: Layout) {
         let size: usize = layout.size();
         let align_pow2: usize = layout.align();
-        //debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
+        if flag{
+            System.dealloc(pos as *mut u8, layout);
+            return;
+        }
+        else{
+            flag = true;
+            log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
+            flag = false;
+        }
+        //log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
+
+
 
         match self.alloc_type{
             AllocType::SystemAlloc => {
@@ -150,12 +178,14 @@ impl GlobalAllocator {
             }
             AllocType::TlsfRustAlloc => {
                 self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
+                flag = true;
+                log::debug!("successfully dealloc.");
+                flag = false;
             }
             _ => {
                 panic!("unknown alloc type.");
             }
         }
-        //debug!("successfully dealloc.");
     }
 
     pub fn used_bytes(&self) -> usize {
@@ -242,7 +272,6 @@ fn test_start() {
     unsafe{GLOBAL_ALLOCATOR.init_heap();}
     call_back_test(233);
     println!("Running memory tests...");
-
 
     println!("tlsf_rust alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_tlsf_rust();}

@@ -357,7 +357,7 @@ impl Heap {
     /// Allocates a chunk of the given size with the given alignment. Returns a pointer to the
     /// beginning of that chunk if it was successful. Else it returns `Err`.
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
-        //log::debug!("qaq: {:#x}",self.free_list.head as usize);
+        //log::debug!("allocate: size = {:#?}",layout.size());
         //单次分配最小16字节
         let size = alignto(max(
             layout.size(),
@@ -391,6 +391,7 @@ impl Heap {
                 }
                 self.used_mem += layout.size();
                 self.avail_mem -= (*block).get_size();
+                //log::debug!("successfully allocate: {:#x} {:#?}",addr,(*block).get_size());
                 return Ok(addr);
             }
             else{
@@ -431,8 +432,9 @@ impl Heap {
             layout.size(),
             max(layout.align(), 2 * size_of::<usize>()),
         ),size_of::<usize>());
-        let block = (ptr - size_of::<usize>()) as *mut BlockHeader;
+        let block = (ptr - 2 * size_of::<usize>()) as *mut BlockHeader;
         let block_size = (*block).get_size();
+        //log::debug!("block = {:#x}, size = {:#?}, block_size = {:#?}",block as usize,size,block_size);
         assert!(block_size >= size && (*block).get_now_free() == false, "Dealloc error");
         (*block).set_free();
         self.used_mem -= layout.size();
