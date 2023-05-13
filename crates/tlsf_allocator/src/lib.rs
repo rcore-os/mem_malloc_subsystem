@@ -225,6 +225,7 @@ impl Controller{
 
     /// 把一个块插入free list中，需要确保这个块是空闲的
     pub unsafe fn add_into_list(&mut self, block: *mut BlockHeader){
+        //log::debug!("add into list******************: {:#x} {:#?}",block as usize, (*block).get_size());
         let size = (*block).get_size();
         let mut fl: usize = 0;
         let mut sl: usize = 0;
@@ -254,6 +255,7 @@ impl Controller{
         }
         let prev = (*block).prev_free;
         let next = (*block).next_free;
+        //log::debug!("del into list: {:#x}, prev = {:#x}, next = {:#x}, fl = {:#?}, sl = {:#?}",block as usize, prev as usize, next as usize, fl, sl);
         if !((*prev).is_null()){
             (*prev).next_free = next;
         }
@@ -375,7 +377,7 @@ impl Heap {
         let mut size = alignto(max(
             layout.size(),
             max(layout.align(), 2 * size_of::<usize>()),
-        ),size_of::<usize>());
+        ),max(layout.align(),size_of::<usize>()));
 
         //处理align更大的分配请求
         if layout.align() > size_of::<usize>(){
@@ -387,8 +389,9 @@ impl Heap {
             let mut block = (*(self.head)).find_block(size);
             if !((*block).is_null()){
                 let mut nsize = (*block).get_size();
-                assert!(nsize >= size,"Alloc error");
+                assert!(nsize >= size,"Alloc error.");
                 let mut addr = (block as usize) + 2 * size_of::<usize>();
+                //log::debug!("*** {:#x} {:#?} {:#x}",block as usize, nsize, get_block_phy_next(block) as usize);
 
                 //处理align更大的分配请求
                 if layout.align() > size_of::<usize>(){
@@ -401,10 +404,13 @@ impl Heap {
                         }
                         //创造一个新的块pre_block
                         let pre_block = block;
+                        let nxt_block = get_block_phy_next(block);
                         block = (new_addr - 2 * size_of::<usize>()) as *mut BlockHeader;
                         //设置物理上的前一块
-                        (*pre_block).prev_phy = (*block).prev_phy;
                         (*block).prev_phy = pre_block;
+                        if !((*nxt_block).is_null()){
+                            (*nxt_block).prev_phy = block;
+                        }
                         //设置块大小
                         let pre_size = (block as usize) - addr;
                         nsize -= pre_size + 2 * size_of::<usize>();
@@ -416,6 +422,8 @@ impl Heap {
                         (*(self.head)).add_into_list(pre_block);
                         self.avail_mem -= 2 * size_of::<usize>();
                         addr = new_addr;
+                        //log::debug!("split head: {:#x} {:#x}, size = {:#?} {:#?}, next_free = {:#x}"
+                        //    , pre_block as usize, block as usize, pre_size, nsize, (*pre_block).next_free as usize);
                     }
 
                     //把size改回来，这里的size就是实际分配出去的大小了
@@ -423,7 +431,7 @@ impl Heap {
                         layout.size(),
                         max(layout.align(), 2 * size_of::<usize>()),
                     ),layout.align());
-                    assert!(nsize >= size,"Alloc error");
+                    assert!(nsize >= size,"Alloc error.");
                 }
                 (*block).set_used();
                 
@@ -446,10 +454,13 @@ impl Heap {
                     //插回到链表中去
                     (*(self.head)).add_into_list(new_block);
                     self.avail_mem -= 2 * size_of::<usize>();
+                    //log::debug!("new block = {:#x}, size = {:#?}",new_block as usize,(*new_block).get_size());
                 }
                 self.used_mem += layout.size();
                 self.avail_mem -= (*block).get_size();
-                //log::debug!("TLSF: successfully allocate: {:#x} {:#?}",addr,(*block).get_size());
+                //log::debug!("TLSF: successfully allocate: {:#x} {:#?}, pre = {:#x}, nxt = {:#x}, nxt nxt free = {:#x}"
+                //    ,addr,(*block).get_size(),get_block_phy_prev(block) as usize,get_block_phy_next(block) as usize
+                //    ,(*get_block_phy_next(block)).next_free as usize);
                 return Ok(addr);
             }
             else{
