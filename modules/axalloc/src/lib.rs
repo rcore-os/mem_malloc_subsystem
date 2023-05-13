@@ -37,7 +37,8 @@ pub use page::GlobalPage;
 /// [`BitmapPageAllocator`] is used as the page allocator.
 pub struct GlobalAllocator {
     //balloc: SpinNoIrq<SlabByteAllocator>,
-    balloc: SpinNoIrq<BasicAllocator>,
+    //balloc: SpinNoIrq<BasicAllocator>,
+    balloc: SpinNoIrq<TLSFAllocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 
 
@@ -48,7 +49,8 @@ impl GlobalAllocator {
     pub const fn new() -> Self {
         Self {
             //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
-            balloc: SpinNoIrq::new(BasicAllocator::new()),
+            //balloc: SpinNoIrq::new(BasicAllocator::new()),
+            balloc: SpinNoIrq::new(TLSFAllocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
     }
@@ -98,20 +100,21 @@ impl GlobalAllocator {
                 //debug!("try to expand heap");
                 //let old_size = balloc.total_bytes();
                 //申请时要比原始size大一点
-                let expand_size = (size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
+                let expand_size = (size + align_pow2 + 6 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 //为什么要每次翻倍？
                 //let expand_size = old_size.max(size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 
-                //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
+                //tlsf可以支持动态扩展一片内存，可以与之前的内存不连续
+                let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
                 //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
-                //balloc.add_memory(heap_ptr, expand_size)?;
+                balloc.add_memory(heap_ptr, expand_size)?;
                 
                 //怀疑原先的alloc_pages有bug，当前暂且采用每次分配一个page的方法
-                for _ in 0..expand_size / PAGE_SIZE {
-                    let heap_ptr = self.alloc_pages(1, PAGE_SIZE)?;
+                //for _ in 0..expand_size / PAGE_SIZE {
+                    //let heap_ptr = self.alloc_pages(1, PAGE_SIZE)?;
                     //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,PAGE_SIZE);
-                    balloc.add_memory(heap_ptr, PAGE_SIZE)?;
-                }
+                    //balloc.add_memory(heap_ptr, PAGE_SIZE)?;
+                //}
                 
             }
         }
