@@ -16,3 +16,4 @@ memory_addr = { path = "../../crates/memory_addr" }
 allocator = { path = "../../crates/allocator" }
 axerrno = { path = "../../crates/axerrno" }
 basic_allocator = { path = "../../crates/basic_allocator" }
+tlsf_allocator = { path = "../../crates/tlsf_allocator" }

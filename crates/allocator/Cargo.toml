@@ -3,7 +3,8 @@ name = "allocator"
 version = "0.1.0"
 edition = "2021"
 authors = ["Yuekai Jia <equation618@gmail.com>"]
-build = "src/build.rs"
+# To run user mode test, add below
+# build = "tests/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 description = "Various allocator algorithms in a unified interface"

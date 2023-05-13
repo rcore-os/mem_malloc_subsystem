@@ -167,6 +167,7 @@ dependencies = [
  "log",
  "memory_addr",
  "spinlock",
+ "tlsf_allocator",
 ]
 
 [[package]]

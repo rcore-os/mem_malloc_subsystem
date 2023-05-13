@@ -8,7 +8,7 @@ use alloc::alloc::{AllocError, Layout};
 use core::mem::size_of;
 pub mod linked_list;
 pub use linked_list::{LinkedList, MemBlockFoot, MemBlockHead};
-use core::cmp::{max};
+use core::cmp::max;
 
 pub enum BasicAllocatorStrategy {
     FirstFitStrategy,

@@ -1,11 +1,9 @@
 #![feature(allocator_api)]
 #![no_std]
-#![feature(core_intrinsics)]
 
 extern crate alloc;
 
 use alloc::alloc::{AllocError, Layout};
-use core::intrinsics::log2f64;
 use core::mem::size_of;
 use core::ptr::null_mut;
 use core::cmp::max;
@@ -117,7 +115,15 @@ fn my_lowbit(x: usize) -> usize{
 
 /// log2
 unsafe fn my_log2(x: usize) -> usize{
-    return log2f64(x as f64) as usize;
+    let mut ans = 0;
+    let mut y = x;
+    if (y >> 32) > 0{y = y >> 32;ans += 32;}
+    if (y >> 16) > 0{y = y >> 16;ans += 16;}
+    if (y >> 8) > 0{y = y >> 8;ans += 8;}
+    if (y >> 4) > 0{y = y >> 4;ans += 4;}
+    if (y >> 2) > 0{y = y >> 2;ans += 2;}
+    if (y >> 1) > 0{ans += 1;}
+    return ans;
 }
 
 /// log lowbit
@@ -307,6 +313,8 @@ pub struct Heap {
     avail_mem: usize, // 实际可用的内存
 }
 
+unsafe impl Send for Heap {}
+
 impl Heap {
     /// Create an empty heap
     pub const fn new() -> Self {
@@ -363,17 +371,60 @@ impl Heap {
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
         //log::debug!("TLSF: allocate: size = {:#?}",layout.size());
         //单次分配最小16字节
-        let size = alignto(max(
+        assert!(my_lowbit(layout.align()) == layout.align(),"align should be power of 2.");
+        let mut size = alignto(max(
             layout.size(),
             max(layout.align(), 2 * size_of::<usize>()),
         ),size_of::<usize>());
-        
+
+        //处理align更大的分配请求
+        if layout.align() > size_of::<usize>(){
+            size = alignto(size + layout.align() + 4 * size_of::<usize>(),layout.align());
+            //给size加上足够的大小，使得切出来的块的头部可以分裂成一个新的块
+        }
+
         unsafe{
-            let block = (*(self.head)).find_block(size);
+            let mut block = (*(self.head)).find_block(size);
             if !((*block).is_null()){
-                let nsize = (*block).get_size();
+                let mut nsize = (*block).get_size();
                 assert!(nsize >= size,"Alloc error");
-                let addr = (block as usize) + 2 * size_of::<usize>();
+                let mut addr = (block as usize) + 2 * size_of::<usize>();
+
+                //处理align更大的分配请求
+                if layout.align() > size_of::<usize>(){
+                    let mut new_addr = alignto(addr,layout.align());
+                    if new_addr != addr{//要切出头部单独组成一块
+                        while new_addr - (block as usize) < 6 * size_of::<usize>(){
+                            //切出的头部不足以构成一个新块，于是把头部再扩大一个align
+                            //因为new_addr是实际分配出去的起始地址，因此到原来块的开头至少要48个字节才能让中间再拆出一个块
+                            new_addr += layout.align();
+                        }
+                        //创造一个新的块pre_block
+                        let pre_block = block;
+                        block = (new_addr - 2 * size_of::<usize>()) as *mut BlockHeader;
+                        //设置物理上的前一块
+                        (*pre_block).prev_phy = (*block).prev_phy;
+                        (*block).prev_phy = pre_block;
+                        //设置块大小
+                        let pre_size = (block as usize) - addr;
+                        nsize -= pre_size + 2 * size_of::<usize>();
+                        (*pre_block).set_size(pre_size);
+                        (*block).set_size(nsize);
+                        //设置使用状态
+                        (*pre_block).set_free();
+                        //插回到链表中去
+                        (*(self.head)).add_into_list(pre_block);
+                        self.avail_mem -= 2 * size_of::<usize>();
+                        addr = new_addr;
+                    }
+
+                    //把size改回来，这里的size就是实际分配出去的大小了
+                    size = alignto(max(
+                        layout.size(),
+                        max(layout.align(), 2 * size_of::<usize>()),
+                    ),layout.align());
+                    assert!(nsize >= size,"Alloc error");
+                }
                 (*block).set_used();
                 
                 //把块的尾部拆分之后扔回去
@@ -386,8 +437,10 @@ impl Heap {
                     if !((*nxt_block).is_null()){
                         (*nxt_block).prev_phy = new_block;
                     }
+                    //设置块大小
                     (*block).set_size(size);
                     (*new_block).set_size(nsize - size - 2 * size_of::<usize>());//别忘了减去新块的头部大小
+                    //设置使用状态
                     (*block).set_used();
                     (*new_block).set_free();
                     //插回到链表中去
@@ -436,10 +489,11 @@ impl Heap {
     pub unsafe fn deallocate(&mut self, ptr: usize, layout: Layout) {
         //log::debug!("TLSF: deallocate: ptr = {:#x}, size = {:#?}",ptr,layout.size());
         //log::debug!("qaq: {:#x}",self.free_list.head as usize);
+        assert!(my_lowbit(layout.align()) == layout.align(),"align should be power of 2.");
         let size = alignto(max(
             layout.size(),
             max(layout.align(), 2 * size_of::<usize>()),
-        ),size_of::<usize>());
+        ),max(layout.align(),size_of::<usize>()));
         let block = (ptr - 2 * size_of::<usize>()) as *mut BlockHeader;
         let block_size = (*block).get_size();
         //log::debug!("block = {:#x}, size = {:#?}, block_size = {:#?}",block as usize,size,block_size);
