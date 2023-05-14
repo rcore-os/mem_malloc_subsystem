@@ -114,7 +114,7 @@ fn my_lowbit(x: usize) -> usize{
 }
 
 /// log2
-unsafe fn my_log2(x: usize) -> usize{
+fn my_log2(x: usize) -> usize{
     let mut ans = 0;
     let mut y = x;
     if (y >> 32) > 0{y = y >> 32;ans += 32;}
@@ -127,7 +127,7 @@ unsafe fn my_log2(x: usize) -> usize{
 }
 
 /// log lowbit
-unsafe fn my_log_lowbit(x: usize) -> usize{
+fn my_log_lowbit(x: usize) -> usize{
     return my_log2(my_lowbit(x));
 }
 
@@ -136,15 +136,27 @@ fn alignto(size: usize, align: usize) -> usize {
     (size + align - 1) / align * align
 }
 
+pub struct ListIndex {
+    pub fl: usize,
+    pub sl: usize,
+    pub size: usize,
+}
 /// 获取一个块对应的一级和二级链表
-unsafe fn get_fl_and_sl(size: usize, fl: *mut usize, sl: *mut usize){
+fn get_fl_and_sl(size: usize) -> ListIndex{
     if size < SMALL_BLOCK_SIZE{//小块
-        *fl = 0;
-        *sl = size >> 3;
+        return ListIndex{
+            fl: 0,
+            sl: size >> 3,
+            size,
+        };
     }
     else{
-        *fl = (my_log2(size)) - FL_INDEX_SHIFT + 1;
-        *sl = (size >> ((*fl) + 2)) & (SL_INDEX_COUNT - 1);
+        let tmp = (my_log2(size)) - FL_INDEX_SHIFT + 1;
+        return ListIndex{
+            fl: tmp,
+            sl: (size >> (tmp + 2)) & (SL_INDEX_COUNT - 1),
+            size,
+        };
     }
 }
 
@@ -163,11 +175,9 @@ fn get_up_size(size: usize) -> usize{
         return alignto(size, 8);
     }
     else{
-        let mut fl: usize = 0;
-        let mut sl: usize = 0;
-        unsafe{
-            get_fl_and_sl(size, &mut fl, &mut sl);
-        }
+        let linkidx = get_fl_and_sl(size);
+        let fl = linkidx.fl;
+        let sl = linkidx.sl;
         if get_block_begin_size(fl,sl) != size{
             nsize += (1 as usize) << (fl + 2);
         }
@@ -176,13 +186,9 @@ fn get_up_size(size: usize) -> usize{
 }
 
 /// 获取一个块向上对齐到一级链表的最小块大小，以及相应的fl和sl
-fn get_up_fl_and_sl(size: usize, fl: *mut usize, sl: *mut usize) -> usize{
+fn get_up_fl_and_sl(size: usize) -> ListIndex{
     let nsize = get_up_size(size);
-    unsafe{
-        get_fl_and_sl(nsize, fl, sl);
-        //log::debug!("get up fl and sl: {:#?} {:#?} {:#?} {:#?} {:#?}",size,*fl,*sl,nsize,get_block_begin_size(*fl, *sl));
-    }
-    return nsize;
+    return get_fl_and_sl(nsize);
 }
 
 impl Controller{
@@ -227,11 +233,9 @@ impl Controller{
     pub unsafe fn add_into_list(&mut self, block: *mut BlockHeader){
         //log::debug!("add into list******************: {:#x} {:#?}",block as usize, (*block).get_size());
         let size = (*block).get_size();
-        let mut fl: usize = 0;
-        let mut sl: usize = 0;
-        unsafe{
-            get_fl_and_sl(size, &mut fl, &mut sl);
-        }
+        let listidx = get_fl_and_sl(size);
+        let fl = listidx.fl;
+        let sl = listidx.sl;
         //获取了这个块的二级链表之后，插入
         let head = self.blocks[fl][sl];
         (*block).next_free = head;
@@ -248,11 +252,9 @@ impl Controller{
     ///把一个块从list中删除，需要确保它之前确实在free list里
     pub unsafe fn del_into_list(&mut self, block: *mut BlockHeader){
         let size = (*block).get_size();
-        let mut fl: usize = 0;
-        let mut sl: usize = 0;
-        unsafe{
-            get_fl_and_sl(size, &mut fl, &mut sl);
-        }
+        let listidx = get_fl_and_sl(size);
+        let fl = listidx.fl;
+        let sl = listidx.sl;
         let prev = (*block).prev_free;
         let next = (*block).next_free;
         //log::debug!("del into list: {:#x}, prev = {:#x}, next = {:#x}, fl = {:#?}, sl = {:#?}",block as usize, prev as usize, next as usize, fl, sl);
@@ -285,9 +287,9 @@ impl Controller{
 
     /// 给定大小，获取一个能用的块，并从链表中删除
     pub unsafe fn find_block(&mut self, size: usize) -> *mut BlockHeader{
-        let mut fl: usize = 0;
-        let mut sl: usize = 0;
-        let _ = get_up_fl_and_sl(size, &mut fl, &mut sl);
+        let listidx = get_up_fl_and_sl(size);
+        let mut fl = listidx.fl;
+        let mut sl = listidx.sl;
         let psl = !(((1 as usize) << sl) - 1);//第二级链表的掩码
         if (psl & self.sl_bitmap[fl]) != 0{//可以在当前一级链表里找到块
             sl = my_log_lowbit(psl & self.sl_bitmap[fl]);
