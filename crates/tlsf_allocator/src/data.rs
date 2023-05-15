@@ -9,7 +9,7 @@ pub struct AddrPointer {
 impl AddrPointer {
     pub fn get_block_header(&self) -> &BlockHeader {
         unsafe{
-            return &(*(self.addr as *mut BlockHeader));
+            return &(*(self.addr as *const BlockHeader));
         }
     }
     pub fn get_mut_block_header(&self) -> &mut BlockHeader {
@@ -19,7 +19,7 @@ impl AddrPointer {
     }
     pub fn get_controller(&self) -> &Controller {
         unsafe{
-            return &(*(self.addr as *mut Controller));
+            return &(*(self.addr as *const Controller));
         }
     }
     pub fn get_mut_controller(&self) -> &mut Controller {
