@@ -29,16 +29,11 @@ impl BaseAllocator for TLSFAllocator {
     fn init(&mut self, start: usize, size: usize){
         //log::debug!("init: start = {:#x}, size = {:#?}",start, size);
         self.inner = Some(Heap::new());
-        unsafe {
-            self.inner_mut().init(start, size);
-        }
+        self.inner_mut().init(start, size);
     }
 
     fn add_memory(&mut self, start: usize, size: usize) -> AllocResult {
-        
-        unsafe {
-            self.inner_mut().add_memory(start, size);
-        }
+        self.inner_mut().add_memory(start, size);
         Ok(())
     }
 }
@@ -52,10 +47,8 @@ impl ByteAllocator for TLSFAllocator {
     }
 
     fn dealloc(&mut self, pos: usize, size: usize, align_pow2: usize) {
-        unsafe {
-            self.inner_mut()
+        self.inner_mut()
                 .deallocate(pos, Layout::from_size_align(size, align_pow2).unwrap())
-        }
     }
 
     fn total_bytes(&self) -> usize {
