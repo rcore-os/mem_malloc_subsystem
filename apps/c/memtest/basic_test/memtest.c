@@ -58,7 +58,7 @@ int main()
     uintptr_t *brk = (uintptr_t *)malloc(0);
     printf("top of heap=%p\n", brk);
 
-    int n = 100;
+    int n = 10000;
     int i = 0;
     uintptr_t **p = (uintptr_t **)malloc(n * sizeof(uint64_t));
     printf("%d(+8)Byte allocated: p=%p\n", n * sizeof(uint64_t), p, p[1]);
@@ -66,7 +66,7 @@ int main()
     for (i = 0; i < n; i++) {
         p[i] = (uintptr_t *)malloc(sizeof(uint64_t));
         *p[i] = 233;
-        printf("allocated addr=%p\n", p[i]);
+        //printf("allocated addr=%p\n", p[i]);
     }
     for (i = 0; i < n; i++) {
         free(p[i]);

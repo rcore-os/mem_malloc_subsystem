@@ -80,7 +80,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "arceos-memtest"
+name = "arceos-memtest-aligntest"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "libax",
+]
+
+[[package]]
+name = "arceos-memtest-basictest"
 version = "0.1.0"
 dependencies = [
  "axalloc",
@@ -107,6 +115,13 @@ dependencies = [
 
 [[package]]
 name = "arceos-sleep"
+version = "0.1.0"
+dependencies = [
+ "libax",
+]
+
+[[package]]
+name = "arceos-threads"
 version = "0.1.0"
 dependencies = [
  "libax",

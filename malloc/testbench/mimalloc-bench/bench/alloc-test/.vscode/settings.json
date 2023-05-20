@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "memory_resource": "cpp",
+        "sstream": "cpp",
+        "tuple": "cpp"
+    }
+}

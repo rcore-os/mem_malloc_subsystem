@@ -38,8 +38,8 @@ pub use page::GlobalPage;
 pub struct GlobalAllocator {
     //balloc: SpinNoIrq<SlabByteAllocator>,
     //balloc: SpinNoIrq<BasicAllocator>,
-    balloc: SpinNoIrq<TLSFCAllocator>,
-    //balloc: SpinNoIrq<TLSFAllocator>,
+    //balloc: SpinNoIrq<TLSFCAllocator>,
+    balloc: SpinNoIrq<TLSFAllocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 
 
@@ -51,8 +51,8 @@ impl GlobalAllocator {
         Self {
             //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
             //balloc: SpinNoIrq::new(BasicAllocator::new()),
-            balloc: SpinNoIrq::new(TLSFCAllocator::new()),
-            //balloc: SpinNoIrq::new(TLSFAllocator::new()),
+            //balloc: SpinNoIrq::new(TLSFCAllocator::new()),
+            balloc: SpinNoIrq::new(TLSFAllocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
     }
