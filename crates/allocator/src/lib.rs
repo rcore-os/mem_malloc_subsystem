@@ -16,12 +16,14 @@ mod buddy;
 mod slab;
 mod basic;
 mod tlsf;
+mod tlsf_c;
 
 pub use bitmap::BitmapPageAllocator;
 pub use buddy::BuddyByteAllocator;
 pub use slab::SlabByteAllocator;
 pub use basic::BasicAllocator;
 pub use tlsf::TLSFAllocator;
+pub use tlsf_c::TLSFCAllocator;
 
 /// The error type used for allocation.
 #[derive(Debug)]

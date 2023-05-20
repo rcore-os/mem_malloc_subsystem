@@ -8,3 +8,4 @@ authors = ["Yuekai Jia <equation618@gmail.com>"]
 
 [dependencies]
 libax = { path = "../../ulib/libax", features = ["alloc", "paging"] }
+axalloc = { path = "../../modules/axalloc" }

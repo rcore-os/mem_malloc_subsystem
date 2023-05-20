@@ -38,7 +38,8 @@ pub use page::GlobalPage;
 pub struct GlobalAllocator {
     //balloc: SpinNoIrq<SlabByteAllocator>,
     //balloc: SpinNoIrq<BasicAllocator>,
-    balloc: SpinNoIrq<TLSFAllocator>,
+    balloc: SpinNoIrq<TLSFCAllocator>,
+    //balloc: SpinNoIrq<TLSFAllocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 
 
@@ -50,7 +51,8 @@ impl GlobalAllocator {
         Self {
             //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
             //balloc: SpinNoIrq::new(BasicAllocator::new()),
-            balloc: SpinNoIrq::new(TLSFAllocator::new()),
+            balloc: SpinNoIrq::new(TLSFCAllocator::new()),
+            //balloc: SpinNoIrq::new(TLSFAllocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
     }
@@ -87,8 +89,8 @@ impl GlobalAllocator {
     /// `align_pow2` must be a power of 2, and the returned region bound will be
     ///  aligned to it.
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
-        //默认alloc请求都是8对齐
-        assert!(align_pow2 <= size_of::<usize>());
+        //默认alloc请求都是8对齐，现在TLSF已经可以支持其他字节的对齐
+        //assert!(align_pow2 <= size_of::<usize>());
         //debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
@@ -191,7 +193,7 @@ unsafe impl GlobalAlloc for GlobalAllocator {
 }
 
 #[cfg_attr(all(target_os = "none", not(test)), global_allocator)]
-static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();
+pub static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();
 
 #[cfg(all(target_os = "none", not(test)))]
 #[alloc_error_handler]

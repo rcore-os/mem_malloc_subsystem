@@ -4,7 +4,7 @@ mod test_lib;
 use test_lib::*;
 use std::collections::BTreeMap;
 use std::vec::Vec;
-use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator, TLSFAllocator};
+use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator, TLSFAllocator, TLSFCAllocator};
 use std::{alloc::{GlobalAlloc, Layout, System}, ffi::c_ulonglong};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use std::mem::size_of;
@@ -25,7 +25,7 @@ pub struct GlobalAllocator {
     basic_alloc: Mutex<BasicAllocator>,
     buddy_alloc: Mutex<BuddyByteAllocator>,
     slab_alloc: Mutex<SlabByteAllocator>,
-    tlsf_c_alloc: Mutex<TlsfCAllocator>,
+    tlsf_c_alloc: Mutex<TLSFCAllocator>,
     tlsf_rust_alloc: Mutex<TLSFAllocator>,
     alloc_type: AllocType,
     heap_arddress: usize,
@@ -44,7 +44,7 @@ impl GlobalAllocator {
             basic_alloc: Mutex::new(BasicAllocator::new()),
             buddy_alloc: Mutex::new(BuddyByteAllocator::new()),
             slab_alloc: Mutex::new(SlabByteAllocator::new()),
-            tlsf_c_alloc: Mutex::new(TlsfCAllocator::new()),
+            tlsf_c_alloc: Mutex::new(TLSFCAllocator::new()),
             tlsf_rust_alloc: Mutex::new(TLSFAllocator::new()),
             alloc_type: AllocType::SystemAlloc,
             heap_arddress: 0,

@@ -24,6 +24,7 @@ dependencies = [
  "slab_allocator",
  "spin",
  "tlsf_allocator",
+ "tlsf_c_allocator",
 ]
 
 [[package]]
@@ -82,6 +83,7 @@ dependencies = [
 name = "arceos-memtest"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
  "libax",
 ]
 
@@ -1542,6 +1544,14 @@ version = "0.1.0"
 name = "tlsf_allocator"
 version = "0.1.0"
 dependencies = [
+ "log",
+]
+
+[[package]]
+name = "tlsf_c_allocator"
+version = "0.1.0"
+dependencies = [
+ "libc",
  "log",
 ]
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Yuekai Jia <equation618@gmail.com>"]
 # To run user mode test, add below
-build = "tests/build.rs"
+# build = "tests/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 description = "Various allocator algorithms in a unified interface"
@@ -19,6 +19,7 @@ bitmap-allocator = { git = "https://github.com/rcore-os/bitmap-allocator.git", r
 slab_allocator = { path = "../slab_allocator" }
 basic_allocator = { path = "../basic_allocator" }
 tlsf_allocator = { path = "../tlsf_allocator" }
+tlsf_c_allocator = { path = "../tlsf_c_allocator" }
 log = "0.4"
 [dev-dependencies]
 spin = "0.9"
