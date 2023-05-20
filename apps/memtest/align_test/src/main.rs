@@ -10,7 +10,16 @@ use libax::rand::{rand_u32,rand_usize};
 use axalloc::GLOBAL_ALLOCATOR;
 
 ///memory chk
-pub fn memory_chk(){}
+pub fn memory_chk(){
+    let tot = GLOBAL_ALLOCATOR.total_bytes() as f64;
+    let used = GLOBAL_ALLOCATOR.used_bytes() as f64;
+    let avail = GLOBAL_ALLOCATOR.available_bytes() as f64;
+    println!("total memory: {:#?} MB",tot / 1048576.0);
+    println!("used memory: {:#?} MB",used / 1048576.0);
+    println!("available memory: {:#?} MB",avail / 1048576.0);
+    println!("occupied memory: {:#?} MB",(tot - avail) / 1048576.0);
+    println!("extra memory rate: {:#?}%",(tot - avail - used) / (tot - avail) * 100.0);
+}
 
 pub fn new_mem(size: usize, align: usize) -> usize{
     if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(size,align){

@@ -38,8 +38,8 @@ pub use page::GlobalPage;
 pub struct GlobalAllocator {
     //balloc: SpinNoIrq<SlabByteAllocator>,
     //balloc: SpinNoIrq<BasicAllocator>,
-    //balloc: SpinNoIrq<TLSFCAllocator>,
-    balloc: SpinNoIrq<TLSFAllocator>,
+    balloc: SpinNoIrq<TLSFCAllocator>,
+    //balloc: SpinNoIrq<TLSFAllocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 
 
@@ -51,8 +51,8 @@ impl GlobalAllocator {
         Self {
             //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
             //balloc: SpinNoIrq::new(BasicAllocator::new()),
-            //balloc: SpinNoIrq::new(TLSFCAllocator::new()),
-            balloc: SpinNoIrq::new(TLSFAllocator::new()),
+            balloc: SpinNoIrq::new(TLSFCAllocator::new()),
+            //balloc: SpinNoIrq::new(TLSFAllocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
     }
@@ -100,7 +100,7 @@ impl GlobalAllocator {
                 return Ok(ptr);
             } else {
                 //debug!("try to expand heap");
-                //let old_size = balloc.total_bytes();
+                let old_size = balloc.total_bytes();
                 //申请时要比原始size大一点
                 let expand_size = (size + align_pow2 + 6 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
                 //为什么要每次翻倍？
@@ -155,6 +155,11 @@ impl GlobalAllocator {
     /// [`alloc_pages`]: GlobalAllocator::alloc_pages
     pub fn dealloc_pages(&self, pos: usize, num_pages: usize) {
         self.palloc.lock().dealloc_pages(pos, num_pages)
+    }
+
+    /// Returns the number of total bytes in the byte allocator.
+    pub fn total_bytes(&self) -> usize {
+        self.balloc.lock().total_bytes()
     }
 
     /// Returns the number of allocated bytes in the byte allocator.
