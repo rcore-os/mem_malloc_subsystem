@@ -4,10 +4,12 @@
 //!
 //! - [`FifoScheduler`]: FIFO (First-In-First-Out) scheduler (cooperative).
 //! - [`RRScheduler`]: Round-robin scheduler (preemptive).
+//! - [`CFScheduler`]: Completely Fair Scheduler (preemptive).
 
 #![cfg_attr(not(test), no_std)]
 #![feature(const_mut_refs)]
 
+mod cfs;
 mod fifo;
 mod round_robin;
 
@@ -16,6 +18,7 @@ mod tests;
 
 extern crate alloc;
 
+pub use cfs::{CFSTask, CFScheduler};
 pub use fifo::{FifoScheduler, FifoTask};
 pub use round_robin::{RRScheduler, RRTask};
 
@@ -60,4 +63,7 @@ pub trait BaseScheduler {
     ///
     /// `current` is the current running task.
     fn task_tick(&mut self, current: &Self::SchedItem) -> bool;
+
+    /// set priority for a task
+    fn set_priority(&mut self, task: &Self::SchedItem, prio: isize) -> bool;
 }

@@ -43,7 +43,7 @@ impl<T, const S: usize> Deref for RRTask<T, S> {
     }
 }
 
-/// A simple Round-Robin (RR) preemptive scheduler.
+/// A simple [Round-Robin] (RR) preemptive scheduler.
 ///
 /// It's very similar to the [`FifoScheduler`], but every task has a time slice
 /// counter that is decremented each time a timer tick occurs. When the current
@@ -53,6 +53,7 @@ impl<T, const S: usize> Deref for RRTask<T, S> {
 /// Unlike [`FifoScheduler`], it uses [`VecDeque`] as the ready queue. So it may
 /// take O(n) time to remove a task from the ready queue.
 ///
+/// [Round-Robin]: https://en.wikipedia.org/wiki/Round-robin_scheduling
 /// [`FifoScheduler`]: crate::FifoScheduler
 pub struct RRScheduler<T, const MAX_TIME_SLICE: usize> {
     ready_queue: VecDeque<Arc<RRTask<T, MAX_TIME_SLICE>>>,
@@ -64,6 +65,10 @@ impl<T, const S: usize> RRScheduler<T, S> {
         Self {
             ready_queue: VecDeque::new(),
         }
+    }
+    /// get the name of scheduler
+    pub fn scheduler_name() -> &'static str {
+        "Round-robin"
     }
 }
 
@@ -100,5 +105,9 @@ impl<T, const S: usize> BaseScheduler for RRScheduler<T, S> {
     fn task_tick(&mut self, current: &Self::SchedItem) -> bool {
         let old_slice = current.time_slice.fetch_sub(1, Ordering::Release);
         old_slice <= 1
+    }
+
+    fn set_priority(&mut self, _task: &Self::SchedItem, _prio: isize) -> bool {
+        false
     }
 }

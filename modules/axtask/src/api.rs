@@ -1,5 +1,7 @@
 //! Task APIs for multi-task configuration.
 
+use alloc::{string::String, sync::Arc};
+
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
 
 #[doc(cfg(feature = "multitask"))]
@@ -8,7 +10,7 @@ pub use crate::task::{CurrentTask, TaskId, TaskInner};
 pub use crate::wait_queue::WaitQueue;
 
 /// The reference type of a task.
-pub type AxTaskRef = alloc::sync::Arc<AxTask>;
+pub type AxTaskRef = Arc<AxTask>;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "sched_fifo")] {
@@ -18,6 +20,9 @@ cfg_if::cfg_if! {
         const MAX_TIME_SLICE: usize = 5;
         pub(crate) type AxTask = scheduler::RRTask<TaskInner, MAX_TIME_SLICE>;
         pub(crate) type Scheduler = scheduler::RRScheduler<TaskInner, MAX_TIME_SLICE>;
+    } else if #[cfg(feature = "sched_cfs")] {
+        pub(crate) type AxTask = scheduler::CFSTask<TaskInner>;
+        pub(crate) type Scheduler = scheduler::CFScheduler<TaskInner>;
     }
 }
 
@@ -60,13 +65,10 @@ pub fn init_scheduler() {
     info!("Initialize scheduling...");
 
     crate::run_queue::init();
+    #[cfg(feature = "irq")]
     crate::timers::init();
 
-    if cfg!(feature = "sched_fifo") {
-        info!("  use FIFO scheduler.");
-    } else if cfg!(feature = "sched_rr") {
-        info!("  use Round-robin scheduler.");
-    }
+    info!("  use {} scheduler.", Scheduler::scheduler_name());
 }
 
 /// Initializes the task scheduler for secondary CPUs.
@@ -77,21 +79,49 @@ pub fn init_scheduler_secondary() {
 /// Handles periodic timer ticks for the task manager.
 ///
 /// For example, advance scheduler states, checks timed events, etc.
+#[cfg(feature = "irq")]
+#[doc(cfg(feature = "irq"))]
 pub fn on_timer_tick() {
     crate::timers::check_events();
     RUN_QUEUE.lock().scheduler_timer_tick();
 }
 
-/// Spawns a new task.
+/// Spawns a new task with the given parameters.
 ///
-/// The task name is an empty string. The task stack size is
-/// [`axconfig::TASK_STACK_SIZE`].
-pub fn spawn<F>(f: F)
+/// Returns the task reference.
+pub fn spawn_raw<F>(f: F, name: String, stack_size: usize) -> AxTaskRef
 where
     F: FnOnce() + Send + 'static,
 {
-    let task = TaskInner::new(f, "", axconfig::TASK_STACK_SIZE);
-    RUN_QUEUE.lock().add_task(task);
+    let task = TaskInner::new(f, name, stack_size);
+    RUN_QUEUE.lock().add_task(task.clone());
+    task
+}
+
+/// Spawns a new task with the default parameters.
+///
+/// The default task name is an empty string. The default task stack size is
+/// [`axconfig::TASK_STACK_SIZE`].
+///
+/// Returns the task reference.
+pub fn spawn<F>(f: F) -> AxTaskRef
+where
+    F: FnOnce() + Send + 'static,
+{
+    spawn_raw(f, "".into(), axconfig::TASK_STACK_SIZE)
+}
+
+/// Set the priority for current task.
+///
+/// The range of the priority is dependent on the underlying scheduler. For
+/// example, in the [CFS] scheduler, the priority is the nice value, ranging from
+/// -20 to 19.
+///
+/// Returns `true` if the priority is set successfully.
+///
+/// [CFS]: https://en.wikipedia.org/wiki/Completely_Fair_Scheduler
+pub fn set_priority(prio: isize) -> bool {
+    RUN_QUEUE.lock().set_current_priority(prio)
 }
 
 /// Current task gives up the CPU time voluntarily, and switches to another
@@ -101,14 +131,20 @@ pub fn yield_now() {
 }
 
 /// Current task is going to sleep for the given duration.
+///
+/// If the feature `irq` is not enabled, it uses busy-wait instead.
 pub fn sleep(dur: core::time::Duration) {
-    let deadline = axhal::time::current_time() + dur;
-    RUN_QUEUE.lock().sleep_until(deadline);
+    sleep_until(axhal::time::current_time() + dur);
 }
 
 /// Current task is going to sleep, it will be woken up at the given deadline.
+///
+/// If the feature `irq` is not enabled, it uses busy-wait instead.
 pub fn sleep_until(deadline: axhal::time::TimeValue) {
+    #[cfg(feature = "irq")]
     RUN_QUEUE.lock().sleep_until(deadline);
+    #[cfg(not(feature = "irq"))]
+    axhal::time::busy_wait_until(deadline);
 }
 
 /// Exits the current task.

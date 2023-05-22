@@ -16,6 +16,10 @@ features-$(FS) += libax/fs
 features-$(NET) += libax/net
 features-$(GRAPHIC) += libax/display
 
+ifeq ($(BUS),pci)
+  features-y += libax/bus-pci
+endif
+
 default_features := y
 
 ifeq ($(APP_LANG),c)
@@ -37,7 +41,6 @@ build_args-c := --crate-type staticlib
 build_args-rust :=
 
 build_args := \
-  -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem \
   --target $(TARGET) \
   --target-dir $(CURDIR)/target \
   $(build_args-$(MODE)) \
@@ -48,7 +51,7 @@ ifeq ($(default_features),n)
   build_args += --no-default-features
 endif
 
-rustc_flags := -Clink-arg=-T$(LD_SCRIPT)
+rustc_flags := -Clink-args="-T$(LD_SCRIPT) -no-pie"
 
 define cargo_build
   cargo rustc $(build_args) $(1) -- $(rustc_flags)
