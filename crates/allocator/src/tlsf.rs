@@ -1,11 +1,10 @@
 //! TLSF memory allocation.
 //!
-//! 
+//!
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
 use core::alloc::Layout;
 use tlsf_allocator::Heap;
-
 
 pub struct TLSFAllocator {
     inner: Option<Heap>,
@@ -26,7 +25,7 @@ impl TLSFAllocator {
 }
 
 impl BaseAllocator for TLSFAllocator {
-    fn init(&mut self, start: usize, size: usize){
+    fn init(&mut self, start: usize, size: usize) {
         self.inner = Some(Heap::new());
         self.inner_mut().init(start, size);
     }
@@ -41,13 +40,13 @@ impl ByteAllocator for TLSFAllocator {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         //log::debug!("alloc: {:#?}",size);
         self.inner_mut()
-        .allocate(Layout::from_size_align(size, align_pow2).unwrap())
-        .map_err(|_| AllocError::NoMemory)
+            .allocate(Layout::from_size_align(size, align_pow2).unwrap())
+            .map_err(|_| AllocError::NoMemory)
     }
 
     fn dealloc(&mut self, pos: usize, size: usize, align_pow2: usize) {
         self.inner_mut()
-                .deallocate(pos, Layout::from_size_align(size, align_pow2).unwrap())
+            .deallocate(pos, Layout::from_size_align(size, align_pow2).unwrap())
     }
 
     fn total_bytes(&self) -> usize {

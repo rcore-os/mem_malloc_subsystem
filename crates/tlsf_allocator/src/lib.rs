@@ -4,8 +4,8 @@
 extern crate alloc;
 
 use alloc::alloc::{AllocError, Layout};
-use core::mem::size_of;
 use core::cmp::max;
+use core::mem::size_of;
 
 mod data;
 use data::*;
@@ -13,7 +13,7 @@ use data::*;
 pub struct Heap {
     head: AddrPointer,
     total_mem: usize, // 总共占用内存
-    used_mem: usize, // 已经分配出去的内存
+    used_mem: usize,  // 已经分配出去的内存
     avail_mem: usize, // 实际可用的内存
 }
 
@@ -23,7 +23,7 @@ impl Heap {
     /// Create an empty heap
     pub const fn new() -> Self {
         Heap {
-            head: AddrPointer{addr: 0},
+            head: AddrPointer { addr: 0 },
             total_mem: 0,
             used_mem: 0,
             avail_mem: 0,
@@ -72,40 +72,47 @@ impl Heap {
     /// beginning of that chunk if it was successful. Else it returns `Err`.
     pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocError> {
         //单次分配最小16字节
-        assert!(my_lowbit(layout.align()) == layout.align(),"align should be power of 2.");
-        let mut size = alignto(max(
-            layout.size(),
-            max(layout.align(), 2 * size_of::<usize>()),
-        ),max(layout.align(),size_of::<usize>()));
+        assert!(
+            my_lowbit(layout.align()) == layout.align(),
+            "align should be power of 2."
+        );
+        let mut size = alignto(
+            max(layout.size(), max(layout.align(), 2 * size_of::<usize>())),
+            max(layout.align(), size_of::<usize>()),
+        );
 
         //处理align更大的分配请求
-        if layout.align() > size_of::<usize>(){
-            size = alignto(size + layout.align() + 4 * size_of::<usize>(),layout.align());
+        if layout.align() > size_of::<usize>() {
+            size = alignto(
+                size + layout.align() + 4 * size_of::<usize>(),
+                layout.align(),
+            );
             //给size加上足够的大小，使得切出来的块的头部可以分裂成一个新的块
         }
 
         let mut block = self.head.find_block(size);
-        if !(block.is_null()){
+        if !(block.is_null()) {
             let mut nsize = block.get_size();
-            assert!(nsize >= size,"Alloc error.");
+            assert!(nsize >= size, "Alloc error.");
             let mut addr = block.addr + 2 * size_of::<usize>();
-            
+
             //处理align更大的分配请求
-            if layout.align() > size_of::<usize>(){
-                let mut new_addr = alignto(addr,layout.align());
-                if new_addr != addr{//要切出头部单独组成一块
-                    while new_addr - block.addr < 6 * size_of::<usize>(){
+            if layout.align() > size_of::<usize>() {
+                let mut new_addr = alignto(addr, layout.align());
+                if new_addr != addr {
+                    //要切出头部单独组成一块
+                    while new_addr - block.addr < 6 * size_of::<usize>() {
                         //切出的头部不足以构成一个新块，于是把头部再扩大一个align
                         //因为new_addr是实际分配出去的起始地址，因此到原来块的开头至少要48个字节才能让中间再拆出一个块
                         new_addr += layout.align();
                     }
                     //创造一个新的块pre_block
-                    let pre_block = block;
-                    let nxt_block = get_block_phy_next(block);
+                    let mut pre_block = block;
+                    let mut nxt_block = get_block_phy_next(block);
                     block = get_addr_pointer(new_addr - 2 * size_of::<usize>());
                     //设置物理上的前一块
                     block.set_prev_phy_pointer(pre_block);
-                    if !(nxt_block.is_null()){
+                    if !(nxt_block.is_null()) {
                         nxt_block.set_prev_phy_pointer(block);
                     }
                     //设置块大小
@@ -122,28 +129,29 @@ impl Heap {
                 }
 
                 //把size改回来，这里的size就是实际分配出去的大小了
-                size = alignto(max(
-                    layout.size(),
-                    max(layout.align(), 2 * size_of::<usize>()),
-                ),layout.align());
-                assert!(nsize >= size,"Alloc error.");
+                size = alignto(
+                    max(layout.size(), max(layout.align(), 2 * size_of::<usize>())),
+                    layout.align(),
+                );
+                assert!(nsize >= size, "Alloc error.");
             }
             block.set_used();
-            
+
             //把块的尾部拆分之后扔回去
-            if nsize >= size + 4 * size_of::<usize>(){//最小32字节才能切出一个新块
+            if nsize >= size + 4 * size_of::<usize>() {
+                //最小32字节才能切出一个新块
                 //新块
-                let new_block = get_addr_pointer(addr + size);
+                let mut new_block = get_addr_pointer(addr + size);
                 new_block.set_prev_phy_pointer(block);
                 //原块的下一个块
-                let nxt_block = get_block_phy_next(block);
-                if !(nxt_block.is_null()){
+                let mut nxt_block = get_block_phy_next(block);
+                if !(nxt_block.is_null()) {
                     nxt_block.set_prev_phy_pointer(new_block);
                 }
                 //设置块大小
                 block.set_size(size);
-                new_block.set_size(nsize - size - 2 * size_of::<usize>());//别忘了减去新块的头部大小
-                //设置使用状态
+                new_block.set_size(nsize - size - 2 * size_of::<usize>()); //别忘了减去新块的头部大小
+                                                                           //设置使用状态
                 block.set_used();
                 new_block.set_free();
                 //插回到链表中去
@@ -152,30 +160,25 @@ impl Heap {
             }
             self.used_mem += layout.size();
             self.avail_mem -= block.get_size();
-            return Ok(addr);
-        }
-        else{
-            return Err(AllocError);
+            Ok(addr)
+        } else {
+            Err(AllocError)
         }
     }
 
-
     /// 把这个块和物理上后一个块合并，要求两个块都是空闲的，且已经从链表中摘下来了
-    pub fn merge_block(&self, block: AddrPointer){
+    pub fn merge_block(&self, mut block: AddrPointer) {
         let nxt = get_block_phy_next(block);
         //改block的size
         let size = block.get_size();
         let nsize = nxt.get_size();
         block.set_size(size + nsize + 2 * size_of::<usize>());
         //改block.nxt.nxt的pre指针为block自己
-        let nnxt = get_block_phy_next(nxt);
-        if !(nnxt.is_null()){
+        let mut nnxt = get_block_phy_next(nxt);
+        if !(nnxt.is_null()) {
             nnxt.set_prev_phy_pointer(block);
         }
     }
-     
-
-    
 
     /// Frees the given allocation. `ptr` must be a pointer returned
     /// by a call to the `allocate` function with identical size and alignment. Undefined
@@ -185,29 +188,32 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub fn deallocate(&mut self, ptr: usize, layout: Layout) {
-        assert!(my_lowbit(layout.align()) == layout.align(),"align should be power of 2.");
-        let size = alignto(max(
-            layout.size(),
-            max(layout.align(), 2 * size_of::<usize>()),
-        ),max(layout.align(),size_of::<usize>()));
-        let block = get_addr_pointer(ptr - 2 * size_of::<usize>());
+        assert!(
+            my_lowbit(layout.align()) == layout.align(),
+            "align should be power of 2."
+        );
+        let size = alignto(
+            max(layout.size(), max(layout.align(), 2 * size_of::<usize>())),
+            max(layout.align(), size_of::<usize>()),
+        );
+        let mut block = get_addr_pointer(ptr - 2 * size_of::<usize>());
         let block_size = block.get_size();
-        assert!(block_size >= size && block.get_now_free() == false, "Dealloc error");
+        assert!(block_size >= size && !block.get_now_free(), "Dealloc error");
         block.set_free();
         self.used_mem -= layout.size();
         self.avail_mem += block_size;
-        
+
         //把这个块与前后的块合并
         let mut nblock = block;
         let pre = get_block_phy_prev(block);
         let nxt = get_block_phy_next(block);
-        if !(nxt.is_null()) && nxt.get_now_free(){
+        if !(nxt.is_null()) && nxt.get_now_free() {
             //如果物理上的下一个块不是null且是空闲的，就合并
             self.head.del_into_list(nxt);
             self.merge_block(nblock);
             self.avail_mem += 2 * size_of::<usize>();
         }
-        if !pre.is_null() && pre.get_now_free(){
+        if !pre.is_null() && pre.get_now_free() {
             //如果物理上的上一个块不是null且是空闲的，就合并
             self.head.del_into_list(pre);
             self.merge_block(pre);

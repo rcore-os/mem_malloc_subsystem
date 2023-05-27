@@ -1,10 +1,9 @@
 //! TLSF memory allocation.
 //!
-//! 
+//!
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
 use tlsf_c_allocator::Heap;
-
 
 pub struct TLSFCAllocator {
     inner: Option<Heap>,
@@ -25,7 +24,7 @@ impl TLSFCAllocator {
 }
 
 impl BaseAllocator for TLSFCAllocator {
-    fn init(&mut self, start: usize, size: usize){
+    fn init(&mut self, start: usize, size: usize) {
         self.inner = Some(Heap::new());
         self.inner_mut().init(start, size);
     }
@@ -39,13 +38,12 @@ impl BaseAllocator for TLSFCAllocator {
 impl ByteAllocator for TLSFCAllocator {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         self.inner_mut()
-        .allocate(size, align_pow2)
-        .map_err(|_| AllocError::NoMemory)
+            .allocate(size, align_pow2)
+            .map_err(|_| AllocError::NoMemory)
     }
 
     fn dealloc(&mut self, pos: usize, size: usize, align_pow2: usize) {
-        self.inner_mut()
-        .deallocate(pos, size, align_pow2)
+        self.inner_mut().deallocate(pos, size, align_pow2)
     }
 
     fn total_bytes(&self) -> usize {

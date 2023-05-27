@@ -7,19 +7,22 @@ extern crate alloc;
 
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use libax::rand::{rand_u32,rand_usize};
 use axalloc::GLOBAL_ALLOCATOR;
+use libax::rand::{rand_u32, rand_usize};
 
 ///memory chk
-pub fn memory_chk(){
+pub fn memory_chk() {
     let tot = GLOBAL_ALLOCATOR.total_bytes() as f64;
     let used = GLOBAL_ALLOCATOR.used_bytes() as f64;
     let avail = GLOBAL_ALLOCATOR.available_bytes() as f64;
-    println!("total memory: {:#?} MB",tot / 1048576.0);
-    println!("used memory: {:#?} MB",used / 1048576.0);
-    println!("available memory: {:#?} MB",avail / 1048576.0);
-    println!("occupied memory: {:#?} MB",(tot - avail) / 1048576.0);
-    println!("extra memory rate: {:#?}%",(tot - avail - used) / (tot - avail) * 100.0);
+    println!("total memory: {:#?} MB", tot / 1048576.0);
+    println!("used memory: {:#?} MB", used / 1048576.0);
+    println!("available memory: {:#?} MB", avail / 1048576.0);
+    println!("occupied memory: {:#?} MB", (tot - avail) / 1048576.0);
+    println!(
+        "extra memory rate: {:#?}%",
+        (tot - avail - used) / (tot - avail) * 100.0
+    );
 }
 
 pub fn test_vec(n: usize) {
@@ -53,9 +56,9 @@ pub fn test_btree_map(n: usize) {
     println!("test_btree_map() OK!");
 }
 
-pub fn test_vec_2(n: usize, m: usize){
+pub fn test_vec_2(n: usize, m: usize) {
     println!("test_vec2() begin...");
-    let mut v:Vec<Vec<usize>> = Vec::new();
+    let mut v: Vec<Vec<usize>> = Vec::new();
     for _ in 0..n {
         let mut tmp: Vec<usize> = Vec::with_capacity(m);
         for _ in 0..m {
@@ -89,10 +92,10 @@ pub fn test_vec_2(n: usize, m: usize){
     println!("test_vec2() OK!");
 }
 
-pub fn test_vec_3(n: usize,k1: usize, k2: usize){
+pub fn test_vec_3(n: usize, k1: usize, k2: usize) {
     println!("test_vec3() begin...");
-    let mut v:Vec<Vec<usize>> = Vec::new();
-    for i in 0..n * 4{
+    let mut v: Vec<Vec<usize>> = Vec::new();
+    for i in 0..n * 4 {
         let nw = match i >= n * 2 {
             true => k1,
             false => match i % 2 {
@@ -106,7 +109,7 @@ pub fn test_vec_3(n: usize,k1: usize, k2: usize){
         }
     }
     memory_chk();
-    for i in 0..n * 4{
+    for i in 0..n * 4 {
         if i % 2 == 1 {
             let tmp: Vec<usize> = Vec::new();
             v[i] = tmp;
@@ -123,22 +126,19 @@ pub fn test_vec_3(n: usize,k1: usize, k2: usize){
     println!("test_vec3() OK!");
 }
 
-
 /// basic test
 pub fn basic_test() {
     println!("Basic alloc test begin...");
     let t0 = libax::time::Instant::now();
     test_vec(3000000);
-    test_vec_2(30000,64);
-    test_vec_2(7500,520);
+    test_vec_2(30000, 64);
+    test_vec_2(7500, 520);
     test_btree_map(50000);
-    test_vec_3(10000,32,64);
+    test_vec_3(10000, 32, 64);
     let t1 = libax::time::Instant::now();
-    println!("time: {:#?}",t1.duration_since(t0));
+    println!("time: {:#?}", t1.duration_since(t0));
     println!("Basic alloc test OK!");
 }
-
-
 
 #[no_mangle]
 fn main() {

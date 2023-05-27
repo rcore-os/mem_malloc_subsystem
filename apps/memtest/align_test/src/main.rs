@@ -6,23 +6,26 @@ extern crate libax;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use libax::rand::{rand_u32,rand_usize};
 use axalloc::GLOBAL_ALLOCATOR;
+use libax::rand::{rand_u32, rand_usize};
 
 /// memory chk
-pub fn memory_chk(){
+pub fn memory_chk() {
     let tot = GLOBAL_ALLOCATOR.total_bytes() as f64;
     let used = GLOBAL_ALLOCATOR.used_bytes() as f64;
     let avail = GLOBAL_ALLOCATOR.available_bytes() as f64;
-    println!("total memory: {:#?} MB",tot / 1048576.0);
-    println!("used memory: {:#?} MB",used / 1048576.0);
-    println!("available memory: {:#?} MB",avail / 1048576.0);
-    println!("occupied memory: {:#?} MB",(tot - avail) / 1048576.0);
-    println!("extra memory rate: {:#?}%",(tot - avail - used) / (tot - avail) * 100.0);
+    println!("total memory: {:#?} MB", tot / 1048576.0);
+    println!("used memory: {:#?} MB", used / 1048576.0);
+    println!("available memory: {:#?} MB", avail / 1048576.0);
+    println!("occupied memory: {:#?} MB", (tot - avail) / 1048576.0);
+    println!(
+        "extra memory rate: {:#?}%",
+        (tot - avail - used) / (tot - avail) * 100.0
+    );
 }
 
-pub fn new_mem(size: usize, align: usize) -> usize{
-    if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(size,align){
+pub fn new_mem(size: usize, align: usize) -> usize {
+    if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(size, align) {
         return ptr;
     }
     panic!("alloc err.");
@@ -39,41 +42,42 @@ pub fn align_test() {
     let n = 50000;
     let mut cnt = 0;
     let mut nw = 0;
-    for _ in 0..n{
-        if (rand_u32() % 3 != 0) | (nw == 0){
+    for _ in 0..n {
+        if (rand_u32() % 3 != 0) | (nw == 0) {
             // add a block
-            let size = (((1 << (rand_u32() & 15)) as f64) * (1.0 + (rand_u32() as f64) / (0xffffffff as u32 as f64))) as usize;
+            let size = (((1 << (rand_u32() & 15)) as f64)
+                * (1.0 + (rand_u32() as f64) / (0xffffffff as u32 as f64)))
+                as usize;
             let align = (1 << (rand_u32() & 7)) as usize;
             let addr = new_mem(size, align);
             v.push(addr);
-            assert!((addr & (align - 1)) == 0,"align not correct.");
+            assert!((addr & (align - 1)) == 0, "align not correct.");
             v2.push(size);
             v3.push(align);
             p.push(cnt);
             cnt += 1;
             nw += 1;
-        }
-        else{
+        } else {
             // delete a block
             let idx = rand_usize() % nw;
             let addr = v[p[idx]];
             let size = v2[p[idx]];
             let align = v3[p[idx]];
-            GLOBAL_ALLOCATOR.dealloc(addr, size as usize,align);
+            GLOBAL_ALLOCATOR.dealloc(addr, size as usize, align);
             nw -= 1;
             p[idx] = p[nw];
             p.pop();
         }
     }
     memory_chk();
-    for idx in 0..nw{
+    for idx in 0..nw {
         let addr = v[p[idx]];
         let size = v2[p[idx]];
         let align = v3[p[idx]];
-        GLOBAL_ALLOCATOR.dealloc(addr, size as usize,align);
+        GLOBAL_ALLOCATOR.dealloc(addr, size as usize, align);
     }
     let t1 = libax::time::Instant::now();
-    println!("time: {:#?}",t1.duration_since(t0));
+    println!("time: {:#?}", t1.duration_since(t0));
     println!("Align alloc test OK!");
 }
 

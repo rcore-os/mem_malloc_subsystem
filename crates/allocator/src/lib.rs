@@ -11,17 +11,17 @@
 #![no_std]
 #![feature(result_option_inspect)]
 
+mod basic;
 mod bitmap;
 mod buddy;
 mod slab;
-mod basic;
 mod tlsf;
 mod tlsf_c;
 
+pub use basic::BasicAllocator;
 pub use bitmap::BitmapPageAllocator;
 pub use buddy::BuddyByteAllocator;
 pub use slab::SlabByteAllocator;
-pub use basic::BasicAllocator;
 pub use tlsf::TLSFAllocator;
 pub use tlsf_c::TLSFCAllocator;
 

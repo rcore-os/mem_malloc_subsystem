@@ -55,7 +55,8 @@ tlsf_decl int tlsf_ffs(unsigned int word)
 
 #else
 
-tlsf_decl int tlsf_ffs(unsigned int word){//获取最低位的1
+// get the lowerest bit of 1
+tlsf_decl int tlsf_ffs(unsigned int word){
 	if(!word) return 0;
 	unsigned int x = word & ((~word) + 1);
 	int ans = 0;
@@ -69,7 +70,8 @@ tlsf_decl int tlsf_ffs(unsigned int word){//获取最低位的1
 
 #endif
 
-tlsf_decl int tlsf_fls(unsigned int word)//获取最高位的1
+// get the hightest bit of 1
+tlsf_decl int tlsf_fls(unsigned int word)
 {
 	if(!word) return -1;
 	unsigned int x = word;

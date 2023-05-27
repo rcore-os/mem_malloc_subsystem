@@ -206,9 +206,9 @@ impl Heap {
 
     ///Finds allocator to use based on layout size and alignment
     pub fn layout_to_allocator(layout: &Layout) -> HeapAllocator {
-        if layout.size() > 4096 
+        if layout.size() > 4096
         // if true // always buddy
-        { 
+        {
             HeapAllocator::BuddyAllocator
         } else if layout.size() <= 64 && layout.align() <= 64 {
             HeapAllocator::Slab64Bytes

@@ -1,11 +1,10 @@
 //! Basic memory allocation.
 //!
-//! 
+//!
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
-use core::alloc::Layout;
 use basic_allocator::Heap;
-
+use core::alloc::Layout;
 
 pub struct BasicAllocator {
     inner: Option<Heap>,
@@ -24,13 +23,13 @@ impl BasicAllocator {
         self.inner.as_ref().unwrap()
     }
 
-    pub fn set_strategy(&mut self,strategy: &str) {
+    pub fn set_strategy(&mut self, strategy: &str) {
         self.inner_mut().set_strategy(strategy);
     }
 }
 
 impl BaseAllocator for BasicAllocator {
-    fn init(&mut self, start: usize, size: usize){
+    fn init(&mut self, start: usize, size: usize) {
         self.inner = Some(Heap::new());
         self.inner_mut().init(start, size);
     }
@@ -44,8 +43,8 @@ impl BaseAllocator for BasicAllocator {
 impl ByteAllocator for BasicAllocator {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         self.inner_mut()
-        .allocate(Layout::from_size_align(size, align_pow2).unwrap())
-        .map_err(|_| AllocError::NoMemory)
+            .allocate(Layout::from_size_align(size, align_pow2).unwrap())
+            .map_err(|_| AllocError::NoMemory)
     }
 
     fn dealloc(&mut self, pos: usize, size: usize, align_pow2: usize) {
