@@ -38,7 +38,6 @@ impl BaseAllocator for TLSFAllocator {
 
 impl ByteAllocator for TLSFAllocator {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
-        //log::debug!("alloc: {:#?}",size);
         self.inner_mut()
             .allocate(Layout::from_size_align(size, align_pow2).unwrap())
             .map_err(|_| AllocError::NoMemory)

@@ -84,6 +84,7 @@ impl GlobalAllocator {
     /// `align_pow2` must be a power of 2, and the returned region bound will be
     ///  aligned to it.
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
+        //log::debug!("alloc: {:#?} {:#?}",size,align_pow2);
         //默认alloc请求都是8对齐，现在TLSF已经可以支持其他字节的对齐
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
@@ -110,6 +111,7 @@ impl GlobalAllocator {
     ///
     /// [`alloc`]: GlobalAllocator::alloc
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
+        //log::debug!("dealloc: {:#?} {:#?}",size,align_pow2);
         self.balloc.lock().dealloc(pos, size, align_pow2);
     }
 

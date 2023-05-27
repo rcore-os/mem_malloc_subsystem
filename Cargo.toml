@@ -6,6 +6,7 @@ members = [
     "apps/helloworld",
     "apps/memtest/basic_test",
     "apps/memtest/align_test",
+    "apps/memtest/multi_thread_test",
     "apps/fs/shell",
     "apps/net/echoserver",
     "apps/net/httpclient",
@@ -48,6 +49,8 @@ members = [
     "crates/timer_list",
     "crates/tuple_for_each",
     "crates/basic_allocator",
+    "crates/tlsf_allocator",
+    "crates/tlsf_c_allocator",
 
     "modules/axalloc",
     "modules/axconfig",

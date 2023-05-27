@@ -17,14 +17,11 @@
    <https://www.gnu.org/licenses/>.  */
 
 #include <errno.h>
-#include <math.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <unistd.h>
 #include <stdbool.h>
 
@@ -236,7 +233,6 @@ main (int argc, char **argv)
 {
   timing_t cur;
   size_t iters = 0, num_threads = 1;
-  struct sigaction act;
   double d_total_s, d_total_i;
   
   if (argc == 1)
@@ -274,40 +270,10 @@ main (int argc, char **argv)
   */
   
   init_random_values ();
-  memset (&act, 0, sizeof (act));
-  act.sa_handler = &alarm_handler;
-
-  sigaction (SIGALRM, &act, NULL);
 
   alarm (BENCHMARK_DURATION);
   
   cur = do_benchmark (num_threads, &iters);
   printf("%zd iterations\n", iters );
-  
-  /*
-  struct rusage usage;
-  getrusage(RUSAGE_SELF, &usage);
-
-  d_total_s = cur;
-  d_total_i = iters;
-
-  json_attr_double (&json_ctx, "duration", d_total_s);
-  json_attr_double (&json_ctx, "iterations", d_total_i);
-  json_attr_double (&json_ctx, "time_per_iteration", d_total_s / d_total_i);
-  json_attr_double (&json_ctx, "max_rss", usage.ru_maxrss);
-
-  json_attr_double (&json_ctx, "threads", num_threads);
-  json_attr_double (&json_ctx, "min_size", MIN_ALLOCATION_SIZE);
-  json_attr_double (&json_ctx, "max_size", MAX_ALLOCATION_SIZE);
-  json_attr_double (&json_ctx, "random_seed", RAND_SEED);
-
-  json_attr_object_end (&json_ctx);
-
-  json_attr_object_end (&json_ctx);
-
-  json_attr_object_end (&json_ctx);
-
-  json_document_end (&json_ctx);
-  */
   return 0;
 }

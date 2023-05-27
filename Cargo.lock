@@ -97,6 +97,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "arceos-memtest-multi_thread_test"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "libax",
+]
+
+[[package]]
 name = "arceos-parallel"
 version = "0.1.0"
 dependencies = [

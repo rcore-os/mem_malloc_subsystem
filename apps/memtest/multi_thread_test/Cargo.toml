@@ -1,11 +1,15 @@
 [package]
-name = "arceos-memtest-aligntest"
+name = "arceos-memtest-multi_thread_test"
 version = "0.1.0"
 edition = "2021"
 authors = ["Yibin Zhang <zhangyb20@mails.tsinghua.edu.cn>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+preempt = ["libax/sched_rr"]
+default = ["libax/default"]
+
 [dependencies]
-libax = { path = "../../../ulib/libax", features = ["alloc", "paging"] }
+libax = { path = "../../../ulib/libax", default-features = false, features = ["alloc", "paging", "multitask", "irq"] }
 axalloc = { path = "../../../modules/axalloc" }
