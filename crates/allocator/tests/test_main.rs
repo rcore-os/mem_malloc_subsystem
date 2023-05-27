@@ -1,17 +1,17 @@
 #![feature(ptr_alignment_type)]
-mod test_lib;
+mod basic_test;
+use basic_test::basic_test;
+use libax::rand::{srand,rand_usize,rand_u32};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use allocator::{
     BasicAllocator, BuddyByteAllocator, SlabByteAllocator, TLSFAllocator, TLSFCAllocator,
 };
-use std::collections::BTreeMap;
 use std::mem::size_of;
 use std::vec::Vec;
 use std::{
     alloc::{GlobalAlloc, Layout, System},
     ffi::c_ulonglong,
 };
-use test_lib::*;
 
 use core::panic;
 use spin::Mutex;
@@ -35,8 +35,8 @@ pub struct GlobalAllocator {
     heap_size: usize,
 }
 
-const PAGE_SIZE: usize = 1 << 12;
-const HEAP_SIZE: usize = 1 << 24;
+const PAGE_SIZE: usize = 1 << 12; // need 4KB aligned
+const HEAP_SIZE: usize = 1 << 26; // 512MB
 static mut HEAP: [usize; HEAP_SIZE + PAGE_SIZE] = [0; HEAP_SIZE + PAGE_SIZE];
 
 static mut FLAG: bool = false;
@@ -203,10 +203,7 @@ impl GlobalAllocator {
 
     pub fn total_bytes(&self) -> usize {
         match self.alloc_type {
-            AllocType::SystemAlloc => {
-                //不适用
-                0
-            }
+            AllocType::SystemAlloc => 0,
             AllocType::BasicAlloc => self.basic_alloc.lock().total_bytes(),
             AllocType::BuddyAlloc => self.buddy_alloc.lock().total_bytes(),
             AllocType::SlabAlloc => self.slab_alloc.lock().total_bytes(),
@@ -217,10 +214,7 @@ impl GlobalAllocator {
 
     pub fn used_bytes(&self) -> usize {
         match self.alloc_type {
-            AllocType::SystemAlloc => {
-                //不适用
-                0
-            }
+            AllocType::SystemAlloc => 0,
             AllocType::BasicAlloc => self.basic_alloc.lock().used_bytes(),
             AllocType::BuddyAlloc => self.buddy_alloc.lock().used_bytes(),
             AllocType::SlabAlloc => self.slab_alloc.lock().used_bytes(),
@@ -231,10 +225,7 @@ impl GlobalAllocator {
 
     pub fn available_bytes(&self) -> usize {
         match self.alloc_type {
-            AllocType::SystemAlloc => {
-                //不适用
-                0
-            }
+            AllocType::SystemAlloc => 0,
             AllocType::BasicAlloc => self.basic_alloc.lock().available_bytes(),
             AllocType::BuddyAlloc => self.buddy_alloc.lock().available_bytes(),
             AllocType::SlabAlloc => self.slab_alloc.lock().available_bytes(),
@@ -281,10 +272,7 @@ pub type CallBackMalloc = unsafe extern "C" fn(size: c_ulonglong) -> c_ulonglong
 pub type CallBackMallocAligned =
     unsafe extern "C" fn(size: c_ulonglong, align: c_ulonglong) -> c_ulonglong;
 pub type CallBackFree = unsafe extern "C" fn(ptr: c_ulonglong, size: c_ulonglong);
-#[link(name = "mitest")]
-extern "C" {
-    pub fn mi_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
-}
+
 pub unsafe extern "C" fn cb_malloc_func(size: c_ulonglong) -> c_ulonglong {
     if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize, 8)) {
         return ptr as c_ulonglong;
@@ -309,6 +297,11 @@ pub unsafe extern "C" fn cb_free_func(ptr: c_ulonglong, size: c_ulonglong) {
         Layout::from_size_align_unchecked(size as usize, 8),
     );
 }
+
+#[link(name = "mitest")]
+extern "C" {
+    pub fn mi_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+}
 pub fn mi_test() {
     //return;
     println!("Mi alloc test begin...");
@@ -320,6 +313,40 @@ pub fn mi_test() {
     println!("time: {:#?}", t1 - t0);
     println!("Mi alloc test OK!");
 }
+
+#[link(name = "malloc_large")]
+extern "C" {
+    pub fn malloc_large_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+}
+pub fn malloc_large_test() {
+    //return;
+    println!("Malloc large test begin...");
+    let t0 = std::time::Instant::now();
+    unsafe {
+        malloc_large_test_start(cb_malloc_func, cb_malloc_aligned_func, cb_free_func);
+    }
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}", t1 - t0);
+    println!("Malloc large test OK!");
+}
+
+#[link(name = "glibc_bench")]
+extern "C" {
+    pub fn glibc_bench_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+}
+pub fn glibc_bench_test() {
+    //return;
+    println!("Glibc bench test begin...");
+    let t0 = std::time::Instant::now();
+    unsafe {
+        glibc_bench_test_start(cb_malloc_func, cb_malloc_aligned_func, cb_free_func);
+    }
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}", t1 - t0);
+    println!("Glibc bench test OK!");
+}
+
+
 
 ///memory chk
 pub fn memory_chk() {
@@ -338,121 +365,7 @@ pub fn memory_chk() {
     }
 }
 
-pub fn test_vec(n: usize) {
-    println!("test_vec() begin...");
-    let mut v = Vec::new();
-    for _ in 0..n {
-        v.push(rand_u32());
-    }
-    memory_chk();
-    println!("test_vec() OK!");
-}
-
-pub fn test_btree_map(n: usize) {
-    println!("test_btree_map() begin...");
-    let mut m = BTreeMap::new();
-    for _ in 0..n {
-        if rand_usize() % 5 == 0 && !m.is_empty() {
-            m.pop_first();
-        } else {
-            let value = rand_usize();
-            let key = format!("key_{value}");
-            m.insert(key, value);
-        }
-    }
-    for (k, v) in m.iter() {
-        if let Some(k) = k.strip_prefix("key_") {
-            assert_eq!(k.parse::<usize>().unwrap(), *v);
-        }
-    }
-    memory_chk();
-    println!("test_btree_map() OK!");
-}
-
-pub fn test_vec_2(n: usize, m: usize) {
-    println!("test_vec2() begin...");
-    let mut v: Vec<Vec<usize>> = Vec::new();
-    for _ in 0..n {
-        let mut tmp: Vec<usize> = Vec::with_capacity(m);
-        for _ in 0..m {
-            tmp.push(rand_usize());
-        }
-        tmp.sort();
-        for j in 0..m - 1 {
-            assert!(tmp[j] <= tmp[j + 1]);
-        }
-        v.push(tmp);
-    }
-
-    let mut p: Vec<usize> = Vec::with_capacity(n);
-    for i in 0..n {
-        p.push(i);
-    }
-    memory_chk();
-
-    for i in 1..n {
-        let o: usize = rand_usize() % (i + 1);
-        let tmp = p[i];
-        p[i] = p[o];
-        p[o] = tmp;
-    }
-    for i in 0..n {
-        let o = p[i];
-        let tmp: Vec<usize> = Vec::new();
-        v[o] = tmp;
-    }
-    memory_chk();
-    println!("test_vec2() OK!");
-}
-
-pub fn test_vec_3(n: usize, k1: usize, k2: usize) {
-    println!("test_vec3() begin...");
-    let mut v: Vec<Vec<usize>> = Vec::new();
-    for i in 0..n * 4 {
-        let nw = match i >= n * 2 {
-            true => k1,
-            false => match i % 2 {
-                0 => k1,
-                _ => k2,
-            },
-        };
-        v.push(Vec::with_capacity(nw));
-        for _ in 0..nw {
-            v[i].push(rand_usize());
-        }
-    }
-    memory_chk();
-    for i in 0..n * 4 {
-        if i % 2 == 1 {
-            let tmp: Vec<usize> = Vec::new();
-            v[i] = tmp;
-        }
-    }
-    for i in 0..n {
-        let nw = k2;
-        v.push(Vec::with_capacity(nw));
-        for _ in 0..nw {
-            v[4 * n + i].push(rand_usize());
-        }
-    }
-    memory_chk();
-    println!("test_vec3() OK!");
-}
-
-/// basic test
-pub fn basic_test() {
-    println!("Basic alloc test begin...");
-    let t0 = std::time::Instant::now();
-    test_vec(3000000);
-    test_vec_2(30000, 64);
-    test_vec_2(7500, 520);
-    test_btree_map(50000);
-    test_vec_3(10000, 32, 64);
-    let t1 = std::time::Instant::now();
-    println!("time: {:#?}", t1 - t0);
-    println!("Basic alloc test OK!");
-}
-
+/// new aligned memory 
 pub fn new_mem(size: usize, align: usize) -> usize {
     unsafe {
         if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, align)) {
@@ -540,6 +453,8 @@ fn test_start() {
     align_test();
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("system test passed!");
     println!("*****************************");
 
@@ -550,6 +465,8 @@ fn test_start() {
     align_test();
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("tlsf_rust alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -562,6 +479,8 @@ fn test_start() {
     }
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("first fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -574,6 +493,8 @@ fn test_start() {
     }
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("best fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -586,6 +507,8 @@ fn test_start() {
     }
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("worst fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -598,6 +521,8 @@ fn test_start() {
     }
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("buddy alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -610,6 +535,8 @@ fn test_start() {
     }
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("slab alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -623,6 +550,8 @@ fn test_start() {
     align_test();
     basic_test();
     mi_test();
+    malloc_large_test();
+    glibc_bench_test();
     println!("tlsf_c alloc test passed!");
     println!("*****************************");
     unsafe {

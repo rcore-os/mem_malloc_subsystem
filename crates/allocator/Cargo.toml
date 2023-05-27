@@ -24,4 +24,5 @@ log = "0.4"
 [dev-dependencies]
 spin = "0.9"
 axlog = {path = "../../modules/axlog", features = ["std"]}
+libax = {path = "../../ulib/libax"}
 libc = "0.2.0"

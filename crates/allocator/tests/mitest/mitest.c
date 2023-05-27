@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
-#include "test_mimalloc.h"
+#include "mitest.h"
 
 void test_large() {
   const size_t N = 1000;
