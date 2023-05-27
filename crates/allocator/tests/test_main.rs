@@ -1,257 +1,21 @@
 #![feature(ptr_alignment_type)]
 mod basic_test;
 use basic_test::basic_test;
+mod global_allocator;
+use global_allocator::GLOBAL_ALLOCATOR;
 use libax::rand::{srand,rand_usize,rand_u32};
-use allocator::{AllocResult, BaseAllocator, ByteAllocator};
-use allocator::{
-    BasicAllocator, BuddyByteAllocator, SlabByteAllocator, TLSFAllocator, TLSFCAllocator,
-};
-use std::mem::size_of;
 use std::vec::Vec;
 use std::{
-    alloc::{GlobalAlloc, Layout, System},
+    alloc::Layout,
     ffi::c_ulonglong,
 };
-
 use core::panic;
-use spin::Mutex;
-pub enum AllocType {
-    SystemAlloc,
-    BasicAlloc,
-    BuddyAlloc,
-    SlabAlloc,
-    TLSFCAlloc,
-    TLSFRustAlloc,
-}
-
-pub struct GlobalAllocator {
-    basic_alloc: Mutex<BasicAllocator>,
-    buddy_alloc: Mutex<BuddyByteAllocator>,
-    slab_alloc: Mutex<SlabByteAllocator>,
-    tlsf_c_alloc: Mutex<TLSFCAllocator>,
-    tlsf_rust_alloc: Mutex<TLSFAllocator>,
-    alloc_type: AllocType,
-    heap_arddress: usize,
-    heap_size: usize,
-}
-
-const PAGE_SIZE: usize = 1 << 12; // need 4KB aligned
-const HEAP_SIZE: usize = 1 << 26; // 512MB
-static mut HEAP: [usize; HEAP_SIZE + PAGE_SIZE] = [0; HEAP_SIZE + PAGE_SIZE];
-
-static mut FLAG: bool = false;
-
-impl GlobalAllocator {
-    pub const fn new() -> Self {
-        Self {
-            basic_alloc: Mutex::new(BasicAllocator::new()),
-            buddy_alloc: Mutex::new(BuddyByteAllocator::new()),
-            slab_alloc: Mutex::new(SlabByteAllocator::new()),
-            tlsf_c_alloc: Mutex::new(TLSFCAllocator::new()),
-            tlsf_rust_alloc: Mutex::new(TLSFAllocator::new()),
-            alloc_type: AllocType::SystemAlloc,
-            heap_arddress: 0,
-            heap_size: 0,
-        }
-    }
-
-    pub unsafe fn init_heap(&mut self) {
-        self.heap_arddress = (HEAP.as_ptr() as usize + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
-        self.heap_size = HEAP_SIZE * size_of::<usize>();
-    }
-
-    pub unsafe fn init_system(&mut self) {
-        self.alloc_type = AllocType::SystemAlloc;
-    }
-
-    pub unsafe fn init_basic(&mut self, strategy: &str) {
-        self.basic_alloc
-            .lock()
-            .init(self.heap_arddress, self.heap_size);
-        self.basic_alloc.lock().set_strategy(strategy);
-        self.alloc_type = AllocType::BasicAlloc;
-    }
-
-    pub unsafe fn init_buddy(&mut self) {
-        self.buddy_alloc
-            .lock()
-            .init(self.heap_arddress, self.heap_size);
-        self.alloc_type = AllocType::BuddyAlloc;
-    }
-
-    pub unsafe fn init_slab(&mut self) {
-        self.slab_alloc
-            .lock()
-            .init(self.heap_arddress, self.heap_size);
-        self.alloc_type = AllocType::SlabAlloc;
-    }
-
-    pub unsafe fn init_tlsf_c(&mut self) {
-        self.tlsf_c_alloc
-            .lock()
-            .init(self.heap_arddress, self.heap_size);
-        self.alloc_type = AllocType::TLSFCAlloc;
-    }
-
-    pub unsafe fn init_tlsf_rust(&mut self) {
-        self.tlsf_rust_alloc
-            .lock()
-            .init(self.heap_arddress, self.heap_size);
-        self.alloc_type = AllocType::TLSFRustAlloc;
-    }
-
-    pub unsafe fn alloc(&self, layout: Layout) -> AllocResult<usize> {
-        let size: usize = layout.size();
-        let align_pow2: usize = layout.align();
-        if FLAG {
-            let ptr = System.alloc(layout);
-            return Ok(ptr as usize);
-        }
-
-        match self.alloc_type {
-            AllocType::SystemAlloc => {
-                let ptr = System.alloc(layout);
-                return Ok(ptr as usize);
-            }
-            AllocType::BasicAlloc => {
-                FLAG = true;
-                if let Ok(ptr) = self.basic_alloc.lock().alloc(size, align_pow2) {
-                    FLAG = false;
-                    return Ok(ptr);
-                } else {
-                    panic!("alloc err: no memery.");
-                }
-            }
-            AllocType::BuddyAlloc => {
-                FLAG = true;
-                if let Ok(ptr) = self.buddy_alloc.lock().alloc(size, align_pow2) {
-                    FLAG = false;
-                    return Ok(ptr);
-                } else {
-                    panic!("alloc err: no memery.");
-                }
-            }
-            AllocType::SlabAlloc => {
-                FLAG = true;
-                if let Ok(ptr) = self.slab_alloc.lock().alloc(size, align_pow2) {
-                    FLAG = false;
-                    return Ok(ptr);
-                } else {
-                    panic!("alloc err: no memery.");
-                }
-            }
-            AllocType::TLSFCAlloc => {
-                FLAG = true;
-                if let Ok(ptr) = self.tlsf_c_alloc.lock().alloc(size, align_pow2) {
-                    FLAG = false;
-                    return Ok(ptr);
-                } else {
-                    panic!("alloc err: no memery.");
-                }
-            }
-            AllocType::TLSFRustAlloc => {
-                FLAG = true;
-                if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
-                    FLAG = false;
-                    return Ok(ptr);
-                } else {
-                    panic!("alloc err: no memery.");
-                }
-            }
-        }
-    }
-
-    pub unsafe fn dealloc(&self, pos: usize, layout: Layout) {
-        let size: usize = layout.size();
-        let align_pow2: usize = layout.align();
-        if FLAG {
-            System.dealloc(pos as *mut u8, layout);
-            return;
-        }
-
-        match self.alloc_type {
-            AllocType::SystemAlloc => {
-                System.dealloc(pos as *mut u8, layout);
-            }
-            AllocType::BasicAlloc => {
-                FLAG = true;
-                self.basic_alloc.lock().dealloc(pos, size, align_pow2);
-                FLAG = false;
-            }
-            AllocType::BuddyAlloc => {
-                FLAG = true;
-                self.buddy_alloc.lock().dealloc(pos, size, align_pow2);
-                FLAG = false;
-            }
-            AllocType::SlabAlloc => {
-                FLAG = true;
-                self.slab_alloc.lock().dealloc(pos, size, align_pow2);
-                FLAG = false;
-            }
-            AllocType::TLSFCAlloc => {
-                FLAG = true;
-                self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
-                FLAG = false;
-            }
-            AllocType::TLSFRustAlloc => {
-                FLAG = true;
-                self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
-                FLAG = false;
-            }
-        }
-    }
-
-    pub fn total_bytes(&self) -> usize {
-        match self.alloc_type {
-            AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().total_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().total_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().total_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().total_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().total_bytes(),
-        }
-    }
-
-    pub fn used_bytes(&self) -> usize {
-        match self.alloc_type {
-            AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().used_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().used_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().used_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().used_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().used_bytes(),
-        }
-    }
-
-    pub fn available_bytes(&self) -> usize {
-        match self.alloc_type {
-            AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().available_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().available_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().available_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().available_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().available_bytes(),
-        }
-    }
-}
-
-unsafe impl GlobalAlloc for GlobalAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if let Ok(ptr) = GlobalAllocator::alloc(self, layout) {
-            ptr as _
-        } else {
-            panic!("alloc err.");
-        }
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        GlobalAllocator::dealloc(self, ptr as _, layout)
-    }
-}
-
-#[global_allocator]
-pub static mut GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();
-
 use std::ffi::c_int;
+use core::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+use std::time::Duration;
+
+
 pub type CallBack = unsafe extern "C" fn(c_int) -> c_int;
 #[link(name = "test")]
 extern "C" {
@@ -319,7 +83,6 @@ extern "C" {
     pub fn malloc_large_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
 }
 pub fn malloc_large_test() {
-    //return;
     println!("Malloc large test begin...");
     let t0 = std::time::Instant::now();
     unsafe {
@@ -335,7 +98,6 @@ extern "C" {
     pub fn glibc_bench_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
 }
 pub fn glibc_bench_test() {
-    //return;
     println!("Glibc bench test begin...");
     let t0 = std::time::Instant::now();
     unsafe {
@@ -344,6 +106,21 @@ pub fn glibc_bench_test() {
     let t1 = std::time::Instant::now();
     println!("time: {:#?}", t1 - t0);
     println!("Glibc bench test OK!");
+}
+
+#[link(name = "multi_thread_c")]
+extern "C" {
+    pub fn multi_thread_c_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+}
+pub fn multi_thread_c_test() {
+    println!("Multi thread C test begin...");
+    let t0 = std::time::Instant::now();
+    unsafe {
+        multi_thread_c_test_start(cb_malloc_func, cb_malloc_aligned_func, cb_free_func);
+    }
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}", t1 - t0);
+    println!("Multi thread C test OK!");
 }
 
 
@@ -435,6 +212,111 @@ pub fn align_test() {
     println!("Align alloc test OK!");
 }
 
+
+
+const NUM_TASKS: usize = 10;
+const MUN_TURN: usize = 100;
+const NUM_ARRAY_PRE_THREAD: usize = 1000;
+
+static mut MEMORY_POOL: Vec<AtomicUsize> = Vec::new(); //NUM_TASKS * NUM_ARRAY_PRE_THREAD] = [AtomicUsize::new(0); NUM_TASKS * NUM_ARRAY_PRE_THREAD];
+static mut MEMORY_SIZE: Vec<AtomicUsize> = Vec::new(); //NUM_TASKS * NUM_ARRAY_PRE_THREAD] = [AtomicUsize::new(0); NUM_TASKS * NUM_ARRAY_PRE_THREAD];
+
+static FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
+
+pub fn multi_thread_test() {
+    srand(2333);
+    println!("Multi thread memory allocation test begin.");
+    let t0 = std::time::Instant::now();
+    unsafe{
+        MEMORY_POOL.clear();
+        MEMORY_SIZE.clear();
+        for _ in 0..NUM_TASKS * NUM_ARRAY_PRE_THREAD {
+            MEMORY_POOL.push(AtomicUsize::new(0));
+            MEMORY_SIZE.push(AtomicUsize::new(0));
+        }
+    }
+
+    for _ in 0..MUN_TURN {
+        // alloc memory and free half (only free the memory allocated by itself)
+        FINISHED_TASKS.store(0, Ordering::Relaxed);
+        for i in 0..NUM_TASKS {
+            thread::spawn(move || {
+                unsafe{
+                    let tid = i;
+                    for j in 0..NUM_ARRAY_PRE_THREAD {
+                        let size = (1_usize << (rand_u32() % 12)) + (1_usize << (rand_u32() % 12));
+                        let idx = j * NUM_TASKS + tid;
+                        if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8)) {
+                            //println!("successfully alloc: {:#?} {:#x} {:#?}", idx,ptr,size);
+                            MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
+                            MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
+                        } else {
+                            panic!("multi thread test: alloc err,");
+                        }
+                    }
+
+                    for j in (NUM_ARRAY_PRE_THREAD >> 1) .. NUM_ARRAY_PRE_THREAD{
+                        let idx = j * NUM_TASKS + tid;
+                        let addr = MEMORY_POOL[idx].load(Ordering::Relaxed);
+                        let size = MEMORY_SIZE[idx].load(Ordering::Relaxed);
+                        //println!("dealloc: {:#?} {:#x} {:#?}", idx,addr,size);
+                        GLOBAL_ALLOCATOR.dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
+                        MEMORY_POOL[idx].store(0_usize, Ordering::Relaxed);
+                        MEMORY_SIZE[idx].store(0_usize, Ordering::Relaxed);
+                    }
+                }
+                FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+            });
+        }
+
+        while FINISHED_TASKS.load(Ordering::Relaxed) < NUM_TASKS {
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        // realloc memory and free all
+        FINISHED_TASKS.store(0, Ordering::Relaxed);
+        for i in 0..NUM_TASKS {
+            thread::spawn(move || {
+                unsafe{
+                    let tid = i;
+                    for j in 0..(NUM_ARRAY_PRE_THREAD >> 1){
+                        let size = (1_usize << (rand_u32() % 12)) + (1_usize << (rand_u32() % 12));
+                        let idx = NUM_TASKS * NUM_ARRAY_PRE_THREAD / 2 + tid * NUM_ARRAY_PRE_THREAD / 2 + j;
+                        if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8)) {
+                            MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
+                            MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
+                        } else {
+                            panic!("multi thread test: alloc err,");
+                        }
+                    }
+
+                    for j in 0..NUM_ARRAY_PRE_THREAD{
+                        let idx = j * NUM_TASKS + tid;
+                        while MEMORY_SIZE[idx].load(Ordering::Relaxed) == 0 {
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                        let addr = MEMORY_POOL[idx].load(Ordering::Relaxed);
+                        let size = MEMORY_SIZE[idx].load(Ordering::Relaxed);
+                        GLOBAL_ALLOCATOR.dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
+                        MEMORY_POOL[idx].store(0_usize, Ordering::Relaxed);
+                        MEMORY_SIZE[idx].store(0_usize, Ordering::Relaxed);
+                    }
+                }
+                FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+            });
+        }
+        while FINISHED_TASKS.load(Ordering::Relaxed) < NUM_TASKS {
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}", t1 - t0);
+    println!("Align alloc test OK!");
+    println!("Multi thread memory allocation test OK!");
+}
+
+
+
 #[test]
 fn test_start() {
     srand(2333);
@@ -455,6 +337,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    multi_thread_test();
+    multi_thread_c_test();
     println!("system test passed!");
     println!("*****************************");
 
@@ -467,6 +351,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("tlsf_rust alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -481,6 +367,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("first fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -495,6 +383,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("best fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -509,6 +399,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("worst fit alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -523,6 +415,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("buddy alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -537,6 +431,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("slab alloc test passed!");
     println!("*****************************");
     unsafe {
@@ -552,6 +448,8 @@ fn test_start() {
     mi_test();
     malloc_large_test();
     glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
     println!("tlsf_c alloc test passed!");
     println!("*****************************");
     unsafe {

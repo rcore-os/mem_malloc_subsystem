@@ -61,4 +61,18 @@ fn main() {
         .unwrap();
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=static=glibc_bench");
+
+    //multi_thread_c/multi_thread_c.c
+    Command::new("cc")
+        .args(&["tests/multi_thread_c/multi_thread_c.c", "-O3", "-c", "-fPIC", "-o"])
+        .arg(&format!("{}/multi_thread_c.o", out_dir))
+        .status()
+        .unwrap();
+    Command::new("ar")
+        .args(&["crus", "libmulti_thread_c.a", "multi_thread_c.o"])
+        .current_dir(&Path::new(&out_dir))
+        .status()
+        .unwrap();
+    println!("cargo:rustc-link-search=native={}", out_dir);
+    println!("cargo:rustc-link-lib=static=multi_thread_c");
 }
