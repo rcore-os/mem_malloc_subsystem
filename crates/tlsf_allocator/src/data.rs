@@ -336,7 +336,6 @@ impl Controller{
     /// add memory
     /// addr和size都应该是8对齐的
     pub fn add_memory(&mut self, addr: usize, size: usize){
-        //log::debug!("TLSF: add memory: {:#x} {:#?}",addr, size - 6 * size_of::<usize>());
         //第一个块
         let first = get_addr_pointer(addr);
         let null_pointer = self.block_null.get_my_pointer();
@@ -356,7 +355,6 @@ impl Controller{
 
     /// 把一个块插入free list中，需要确保这个块是空闲的
     pub fn add_into_list(&mut self, block: AddrPointer){
-        //log::debug!("add into list******************: {:#x} {:#?}",block as usize, (*block).get_size());
         let size = block.get_size();
         let listidx = get_fl_and_sl(size);
         let fl = listidx.fl;
@@ -382,7 +380,6 @@ impl Controller{
         let sl = listidx.sl;
         let prev = block.get_prev_free_pointer();
         let next = block.get_next_free_pointer();
-        //log::debug!("del into list: {:#x}, prev = {:#x}, next = {:#x}, fl = {:#?}, sl = {:#?}",block as usize, prev as usize, next as usize, fl, sl);
         if !(prev.is_null()){
             prev.set_next_free_pointer(next);
         }
@@ -429,7 +426,6 @@ impl Controller{
                 return self.block_null.get_my_pointer();
             }
         }
-        //log::debug!("find block: {:#?} {:#?} {:#?} {:#?}",size, fl, sl, get_block_begin_size(fl, sl));
         return self.get_first_block(fl,sl);
     }
 }

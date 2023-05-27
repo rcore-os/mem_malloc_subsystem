@@ -1,5 +1,4 @@
 #![feature(ptr_alignment_type)]
-mod tlsf_c;
 mod test_lib;
 use test_lib::*;
 use std::collections::BTreeMap;
@@ -8,7 +7,6 @@ use allocator::{BasicAllocator, SlabByteAllocator, BuddyByteAllocator, TLSFAlloc
 use std::{alloc::{GlobalAlloc, Layout, System}, ffi::c_ulonglong};
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use std::mem::size_of;
-use tlsf_c::TlsfCAllocator;
 
 use core::panic;
 use spin::Mutex;
@@ -17,8 +15,8 @@ pub enum AllocType{
     BasicAlloc,
     BuddyAlloc,
     SlabAlloc,
-    TlsfCAlloc,
-    TlsfRustAlloc,
+    TLSFCAlloc,
+    TLSFRustAlloc,
 }
 
 pub struct GlobalAllocator {
@@ -80,22 +78,17 @@ impl GlobalAllocator {
 
     pub unsafe fn init_tlsf_c(&mut self) {
         self.tlsf_c_alloc.lock().init(self.heap_arddress,self.heap_size);
-        self.alloc_type = AllocType::TlsfCAlloc;
+        self.alloc_type = AllocType::TLSFCAlloc;
     }
 
     pub unsafe fn init_tlsf_rust(&mut self) {
         self.tlsf_rust_alloc.lock().init(self.heap_arddress,self.heap_size);
-        self.alloc_type = AllocType::TlsfRustAlloc;
+        self.alloc_type = AllocType::TLSFRustAlloc;
     }
 
     pub unsafe fn alloc(&self, layout: Layout) -> AllocResult<usize> {
-        //默认alloc请求都是8对齐
         let size: usize = layout.size();
         let align_pow2: usize = layout.align();
-        //assert!(align_pow2 <= size_of::<usize>());
-        //println!("***");
-        //axlog::debug!("alloc");
-        //axlog::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         if FLAG{
             let ptr = System.alloc(layout);
             return Ok(ptr as usize);
@@ -107,37 +100,40 @@ impl GlobalAllocator {
                 return Ok(ptr as usize);
             }
             AllocType::BasicAlloc => {
-                if let Ok(ptr) = self.basic_alloc.lock().alloc(size, align_pow2) {
-                    return Ok(ptr);
-                } else { panic!("alloc err: no memery.");}
-            }
-            AllocType::BuddyAlloc => {
-                if let Ok(ptr) = self.buddy_alloc.lock().alloc(size, align_pow2) {
-                    return Ok(ptr);
-                } else { panic!("alloc err: no memery.");}
-            }
-            AllocType::SlabAlloc => {
-                if let Ok(ptr) = self.slab_alloc.lock().alloc(size, align_pow2) {
-                    return Ok(ptr);
-                } else { panic!("alloc err: no memery.");}
-            }
-            AllocType::TlsfCAlloc => {
-                if let Ok(ptr) = self.tlsf_c_alloc.lock().alloc(size, align_pow2) {
-                    return Ok(ptr);
-                } else { panic!("alloc err: no memery.");}
-            }
-            AllocType::TlsfRustAlloc => {
                 FLAG = true;
-                //log::debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
-                if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
-                    //log::debug!("successfully alloc: {:#x}",ptr);
+                if let Ok(ptr) = self.basic_alloc.lock().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else { panic!("alloc err: no memery.");}
             }
-
-
-            _ => { panic!("unknown alloc type.");}
+            AllocType::BuddyAlloc => {
+                FLAG = true;
+                if let Ok(ptr) = self.buddy_alloc.lock().alloc(size, align_pow2) {
+                    FLAG = false;
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
+            AllocType::SlabAlloc => {
+                FLAG = true;
+                if let Ok(ptr) = self.slab_alloc.lock().alloc(size, align_pow2) {
+                    FLAG = false;
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
+            AllocType::TLSFCAlloc => {
+                FLAG = true;
+                if let Ok(ptr) = self.tlsf_c_alloc.lock().alloc(size, align_pow2) {
+                    FLAG = false;
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
+            AllocType::TLSFRustAlloc => {
+                FLAG = true;
+                if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
+                    FLAG = false;
+                    return Ok(ptr);
+                } else { panic!("alloc err: no memery.");}
+            }
         }
         
     }
@@ -155,26 +151,29 @@ impl GlobalAllocator {
                 System.dealloc(pos as *mut u8, layout);
             }
             AllocType::BasicAlloc => {
-                self.basic_alloc.lock().dealloc(pos, size, align_pow2);
-            }
-            AllocType::BuddyAlloc => {
-                self.buddy_alloc.lock().dealloc(pos, size, align_pow2);
-            }
-            AllocType::SlabAlloc => {
-                self.slab_alloc.lock().dealloc(pos, size, align_pow2);
-            }
-            AllocType::TlsfCAlloc => {
-                self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
-            }
-            AllocType::TlsfRustAlloc => {
                 FLAG = true;
-                //log::debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
-                self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
-                //log::debug!("successfully dealloc.");
+                self.basic_alloc.lock().dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
-            _ => {
-                panic!("unknown alloc type.");
+            AllocType::BuddyAlloc => {
+                FLAG = true;
+                self.buddy_alloc.lock().dealloc(pos, size, align_pow2);
+                FLAG = false;
+            }
+            AllocType::SlabAlloc => {
+                FLAG = true;
+                self.slab_alloc.lock().dealloc(pos, size, align_pow2);
+                FLAG = false;
+            }
+            AllocType::TLSFCAlloc => {
+                FLAG = true;
+                self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
+                FLAG = false;
+            }
+            AllocType::TLSFRustAlloc => {
+                FLAG = true;
+                self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
+                FLAG = false;
             }
         }
     }
@@ -193,14 +192,11 @@ impl GlobalAllocator {
             AllocType::SlabAlloc => {
                 self.slab_alloc.lock().total_bytes()
             }
-            AllocType::TlsfCAlloc => {
+            AllocType::TLSFCAlloc => {
                 self.tlsf_c_alloc.lock().total_bytes()
             }
-            AllocType::TlsfRustAlloc => {
+            AllocType::TLSFRustAlloc => {
                 self.tlsf_rust_alloc.lock().total_bytes()
-            }
-            _ => {
-                panic!("unknown alloc type.");
             }
         }
     }
@@ -219,14 +215,11 @@ impl GlobalAllocator {
             AllocType::SlabAlloc => {
                 self.slab_alloc.lock().used_bytes()
             }
-            AllocType::TlsfCAlloc => {
+            AllocType::TLSFCAlloc => {
                 self.tlsf_c_alloc.lock().used_bytes()
             }
-            AllocType::TlsfRustAlloc => {
+            AllocType::TLSFRustAlloc => {
                 self.tlsf_rust_alloc.lock().used_bytes()
-            }
-            _ => {
-                panic!("unknown alloc type.");
             }
         }
     }
@@ -245,14 +238,11 @@ impl GlobalAllocator {
             AllocType::SlabAlloc => {
                 self.slab_alloc.lock().available_bytes()
             }
-            AllocType::TlsfCAlloc => {
+            AllocType::TLSFCAlloc => {
                 self.tlsf_c_alloc.lock().available_bytes()
             }
-            AllocType::TlsfRustAlloc => {
+            AllocType::TLSFRustAlloc => {
                 self.tlsf_rust_alloc.lock().available_bytes()
-            }
-            _ => {
-                panic!("unknown alloc type.");
             }
         }
     }
@@ -290,7 +280,6 @@ pub fn call_back_test(x: c_int){
         let y = hello(x,cb_func);
         println!("rust call_back test passed! {:#?}",y);
     }
-    println!("*****************************");
 }
 
 pub type CallBackMalloc = unsafe extern fn(size: c_ulonglong) -> c_ulonglong;
@@ -340,29 +329,19 @@ pub fn memory_chk(){
 }
 
 pub fn test_vec(n: usize) {
-    //const N: usize = 1_000_000;
-    //let mut v = Vec::with_capacity(N);
     println!("test_vec() begin...");
     let mut v = Vec::new();
     for _ in 0..n {
-        //println!("vector push 1");
         v.push(rand_u32());
     }
-    //v.sort();
-    //for i in 0..n - 1 {
-    //    assert!(v[i] <= v[i + 1]);
-    //}
     memory_chk();
     println!("test_vec() OK!");
-    println!("*****");
 }
 
 pub fn test_btree_map(n: usize) {
     println!("test_btree_map() begin...");
-    //const N: usize = 20;
     let mut m = BTreeMap::new();
     for _ in 0..n {
-        //println!("test btree map: {:#?}",i);
         if rand_usize() % 5 == 0 && !m.is_empty() {
             m.pop_first();
         } else {
@@ -370,25 +349,20 @@ pub fn test_btree_map(n: usize) {
             let key = format!("key_{value}");
             m.insert(key, value);
         }
-        //if i > 1 {break;}
     }
     for (k, v) in m.iter() {
         if let Some(k) = k.strip_prefix("key_") {
             assert_eq!(k.parse::<usize>().unwrap(), *v);
         }
     }
-    //println!("{:#?}",m.len());
     memory_chk();
     println!("test_btree_map() OK!");
-    println!("*****");
 }
 
 pub fn test_vec_2(n: usize, m: usize){
     println!("test_vec2() begin...");
-    //let mut v = Vec::with_capacity(N);
     let mut v:Vec<Vec<usize>> = Vec::new();
     for _ in 0..n {
-        //println!("vector push {:#?}",i);
         let mut tmp: Vec<usize> = Vec::with_capacity(m);
         for _ in 0..m {
             tmp.push(rand_usize());
@@ -417,16 +391,8 @@ pub fn test_vec_2(n: usize, m: usize){
         let tmp: Vec<usize> = Vec::new();
         v[o] = tmp;
     }
-    //v.sort();
-    /*
-    for _ in 0..N {
-        println!("vector push 2");
-        v.push(rand::rand_u32());
-    }
-    */
     memory_chk();
     println!("test_vec2() OK!");
-    println!("*****");
 }
 
 pub fn test_vec_3(n: usize,k1: usize, k2: usize){
@@ -461,7 +427,6 @@ pub fn test_vec_3(n: usize,k1: usize, k2: usize){
     }
     memory_chk();
     println!("test_vec3() OK!");
-    println!("*****");
 }
 
 
@@ -477,7 +442,6 @@ pub fn basic_test() {
     let t1 = std::time::Instant::now();
     println!("time: {:#?}",t1 - t0);
     println!("Basic alloc test OK!");
-    println!("*****");
 }
 
 pub fn new_mem(size: usize, align: usize) -> usize{
@@ -504,10 +468,8 @@ pub fn align_test() {
         if (rand_u32() % 3 != 0) | (nw == 0){//插入一个块
             let size = (((1 << (rand_u32() & 15)) as f64) * (1.0 + (rand_u32() as f64) / (0xffffffff as u32 as f64))) as usize;
             let align = (1 << (rand_u32() & 7)) as usize;
-            //println!("alloc: size = {:#?}, align = {:#?}",size,align);
             let addr = new_mem(size, align);
             v.push(addr);
-            //println!("successfully alloc: addr = {:#x}",addr);
             assert!((addr & (align - 1)) == 0,"align not correct.");
             v2.push(size);
             v3.push(align);
@@ -520,7 +482,6 @@ pub fn align_test() {
             let addr = v[p[idx]];
             let size = v2[p[idx]];
             let align = v3[p[idx]];
-            //println!("dealloc: addr = {:#x}, size = {:#?}, align = {:#?}",addr,size,align);
             unsafe{GLOBAL_ALLOCATOR.dealloc(addr, Layout::from_size_align_unchecked(size as usize,align));}
             nw -= 1;
             p[idx] = p[nw];
@@ -537,11 +498,11 @@ pub fn align_test() {
     let t1 = std::time::Instant::now();
     println!("time: {:#?}",t1 - t0);
     println!("Align alloc test OK!");
-    println!("*****");
 }
 
 #[test]
 fn test_start() {
+    srand(2333);
     axlog::init();
     axlog::set_max_level("debug");
     unsafe{GLOBAL_ALLOCATOR.init_heap();}
@@ -565,11 +526,8 @@ fn test_start() {
     println!("*****************************");
     unsafe{GLOBAL_ALLOCATOR.init_system();}
 
-    //return;
-
     println!("first fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("first_fit");}
-    //align_test();
     basic_test();
     mi_test();
     println!("first fit alloc test passed!");
@@ -578,7 +536,6 @@ fn test_start() {
 
     println!("best fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("best_fit");}
-    //align_test();
     basic_test();
     mi_test();
     println!("best fit alloc test passed!");
@@ -587,7 +544,6 @@ fn test_start() {
 
     println!("worst fit alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_basic("worst_fit");}
-    //align_test();
     basic_test();
     mi_test();
     println!("worst fit alloc test passed!");
@@ -596,7 +552,6 @@ fn test_start() {
 
     println!("buddy alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_buddy();}
-    //align_test();
     basic_test();
     mi_test();
     println!("buddy alloc test passed!");
@@ -605,7 +560,6 @@ fn test_start() {
 
     println!("slab alloc test:");
     unsafe{GLOBAL_ALLOCATOR.init_slab();}
-    //align_test();
     basic_test();
     mi_test();
     println!("slab alloc test passed!");

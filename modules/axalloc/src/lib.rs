@@ -13,11 +13,9 @@ extern crate alloc;
 
 mod page;
 
-use allocator::*;//{AllocResult, BaseAllocator, ByteAllocator, PageAllocator};
-//use allocator::{BitmapPageAllocator, SlabByteAllocator};
+use allocator::*;
 use core::alloc::{GlobalAlloc, Layout};
 use spinlock::SpinNoIrq;
-//use allocator::{BasicAllocator};
 use core::mem::size_of;
 
 const PAGE_SIZE: usize = 0x1000;
@@ -89,34 +87,17 @@ impl GlobalAllocator {
     ///  aligned to it.
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         //默认alloc请求都是8对齐，现在TLSF已经可以支持其他字节的对齐
-        //assert!(align_pow2 <= size_of::<usize>());
-        //debug!("alloc size: {:#?}, align: {:#?}",size,align_pow2);
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
         loop {
             if let Ok(ptr) = balloc.alloc(size, align_pow2) {
-                //debug!("successfully alloc ptr: {:#x}",ptr);
                 return Ok(ptr);
             } else {
-                //debug!("try to expand heap");
-                let old_size = balloc.total_bytes();
                 //申请时要比原始size大一点
                 let expand_size = (size + align_pow2 + 6 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
-                //为什么要每次翻倍？
-                //let expand_size = old_size.max(size + 2 * size_of::<usize>()).next_power_of_two().max(PAGE_SIZE);
-                
                 //tlsf可以支持动态扩展一片内存，可以与之前的内存不连续
                 let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
-                //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,expand_size);
-                balloc.add_memory(heap_ptr, expand_size)?;
-                
-                //怀疑原先的alloc_pages有bug，当前暂且采用每次分配一个page的方法
-                //for _ in 0..expand_size / PAGE_SIZE {
-                    //let heap_ptr = self.alloc_pages(1, PAGE_SIZE)?;
-                    //debug!("expand heap memory: [{:#x}, {:#x}), size = {:#?}",heap_ptr,heap_ptr + expand_size,PAGE_SIZE);
-                    //balloc.add_memory(heap_ptr, PAGE_SIZE)?;
-                //}
-                
+                balloc.add_memory(heap_ptr, expand_size)?;    
             }
         }
     }
@@ -129,9 +110,7 @@ impl GlobalAllocator {
     ///
     /// [`alloc`]: GlobalAllocator::alloc
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
-        //debug!("dealloc pos: {:#x}, size: {:#?}, align: {:#?}",pos, size, align_pow2);
         self.balloc.lock().dealloc(pos, size, align_pow2);
-        //debug!("successfully dealloc.");
     }
 
     /// Allocates contiguous pages.
@@ -141,7 +120,6 @@ impl GlobalAllocator {
     /// `align_pow2` must be a power of 2, and the returned region bound will be
     /// aligned to it.
     pub fn alloc_pages(&self, num_pages: usize, align_pow2: usize) -> AllocResult<usize> {
-        //log::debug!("alloc pages: {:#?}",num_pages);
         self.palloc.lock().alloc_pages(num_pages, align_pow2)
     }
 

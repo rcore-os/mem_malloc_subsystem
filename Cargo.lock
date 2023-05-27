@@ -22,7 +22,7 @@ dependencies = [
  "libc",
  "log",
  "slab_allocator",
- "spin",
+ "spin 0.9.8",
  "tlsf_allocator",
  "tlsf_c_allocator",
 ]
@@ -122,13 +122,6 @@ dependencies = [
 
 [[package]]
 name = "arceos-sleep"
-version = "0.1.0"
-dependencies = [
- "libax",
-]
-
-[[package]]
-name = "arceos-threads"
 version = "0.1.0"
 dependencies = [
  "libax",

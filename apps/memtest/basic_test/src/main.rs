@@ -23,29 +23,19 @@ pub fn memory_chk(){
 }
 
 pub fn test_vec(n: usize) {
-    //const N: usize = 1_000_000;
-    //let mut v = Vec::with_capacity(N);
     println!("test_vec() begin...");
     let mut v = Vec::new();
     for _ in 0..n {
-        //println!("vector push 1");
         v.push(rand_u32());
     }
-    //v.sort();
-    //for i in 0..n - 1 {
-    //    assert!(v[i] <= v[i + 1]);
-    //}
     memory_chk();
     println!("test_vec() OK!");
-    //println!("*****");
 }
 
 pub fn test_btree_map(n: usize) {
     println!("test_btree_map() begin...");
-    //const N: usize = 20;
     let mut m = BTreeMap::new();
     for _ in 0..n {
-        //println!("test btree map: {:#?}",i);
         if rand_usize() % 5 == 0 && !m.is_empty() {
             m.pop_first();
         } else {
@@ -53,25 +43,20 @@ pub fn test_btree_map(n: usize) {
             let key = format!("key_{value}");
             m.insert(key, value);
         }
-        //if i > 1 {break;}
     }
     for (k, v) in m.iter() {
         if let Some(k) = k.strip_prefix("key_") {
             assert_eq!(k.parse::<usize>().unwrap(), *v);
         }
     }
-    //println!("{:#?}",m.len());
     memory_chk();
     println!("test_btree_map() OK!");
-    //println!("*****");
 }
 
 pub fn test_vec_2(n: usize, m: usize){
     println!("test_vec2() begin...");
-    //let mut v = Vec::with_capacity(N);
     let mut v:Vec<Vec<usize>> = Vec::new();
     for _ in 0..n {
-        //println!("vector push {:#?}",i);
         let mut tmp: Vec<usize> = Vec::with_capacity(m);
         for _ in 0..m {
             tmp.push(rand_usize());
@@ -100,16 +85,8 @@ pub fn test_vec_2(n: usize, m: usize){
         let tmp: Vec<usize> = Vec::new();
         v[o] = tmp;
     }
-    //v.sort();
-    /*
-    for _ in 0..N {
-        println!("vector push 2");
-        v.push(rand::rand_u32());
-    }
-    */
     memory_chk();
     println!("test_vec2() OK!");
-    //println!("*****");
 }
 
 pub fn test_vec_3(n: usize,k1: usize, k2: usize){
@@ -144,7 +121,6 @@ pub fn test_vec_3(n: usize,k1: usize, k2: usize){
     }
     memory_chk();
     println!("test_vec3() OK!");
-    //println!("*****");
 }
 
 

@@ -6,7 +6,6 @@ members = [
     "apps/helloworld",
     "apps/memtest/basic_test",
     "apps/memtest/align_test",
-    "apps/threads",
     "apps/fs/shell",
     "apps/net/echoserver",
     "apps/net/httpclient",

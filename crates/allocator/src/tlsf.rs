@@ -27,7 +27,6 @@ impl TLSFAllocator {
 
 impl BaseAllocator for TLSFAllocator {
     fn init(&mut self, start: usize, size: usize){
-        //log::debug!("init: start = {:#x}, size = {:#?}",start, size);
         self.inner = Some(Heap::new());
         self.inner_mut().init(start, size);
     }

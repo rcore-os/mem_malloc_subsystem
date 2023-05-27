@@ -34,18 +34,18 @@ impl MemBlockHead {
 
     ///重设这一块的大小，别忘了同时修改foot的信息
     ///在同时需要修改size和used的时候，一定注意要先改size再改used
-    pub unsafe fn set_size(&mut self, size: usize){
+    pub fn set_size(&mut self, size: usize){
         self.size = (size << 1) | (self.size & 1);
-        (*(self.get_foot())).set_size(size);
+        unsafe{(*(self.get_foot())).set_size(size)};
     }
     ///重设这一块的使用位，别忘了同时修改foot的信息
-    pub unsafe fn set_used(&mut self, used: bool){
+    pub fn set_used(&mut self, used: bool){
         if used {
             self.size |= 1 as usize;
         } else {
             self.size &= !(1 as usize);
         }
-        (*(self.get_foot())).set_used(used);
+        unsafe{(*(self.get_foot())).set_used(used);}
     }
 
 
@@ -58,8 +58,8 @@ impl MemBlockHead {
         (self.addr() + self.size()) as *mut MemBlockHead
     }
     ///获取上一块的head
-    pub unsafe fn get_pre_block(&mut self) -> *mut MemBlockHead{
-        (*((self.addr() - size_of::<usize>()) as *mut MemBlockFoot)).get_head()
+    pub fn get_pre_block(&mut self) -> *mut MemBlockHead{
+        unsafe{(*((self.addr() - size_of::<usize>()) as *mut MemBlockFoot)).get_head()}
     }
 }
 
@@ -120,41 +120,49 @@ impl LinkedList {
     }
 
     /// Push `item` to the front of the list
-    pub unsafe fn push(&mut self, item: *mut MemBlockHead, size: usize) {
-        (*item).nxt = self.head;
-        (*item).pre = ptr::null_mut();
-        (*item).set_size(size);
-        (*item).set_used(false);
-        if !self.is_empty() {
-            (*self.head).pre = item;
+    pub fn push(&mut self, item: *mut MemBlockHead, size: usize) {
+        unsafe{
+            (*item).nxt = self.head;
+            (*item).pre = ptr::null_mut();
+            (*item).set_size(size);
+            (*item).set_used(false);
+            if !self.is_empty() {
+                (*self.head).pre = item;
+            }
+            self.head = item;
         }
-        self.head = item;
+        
     }
 
     /// Try to remove the first item in the list
-    pub unsafe fn pop(&mut self) -> Option<*mut MemBlockHead> {
+    pub fn pop(&mut self) -> Option<*mut MemBlockHead> {
         match self.is_empty() {
             true => None,
             false => {
-                // Advance head pointer
-                let item = self.head;
-                self.head = (*item).nxt;
-                (*self.head).pre = ptr::null_mut();
-                Some(item)
+                unsafe{
+                    // Advance head pointer
+                    let item = self.head;
+                    self.head = (*item).nxt;
+                    (*self.head).pre = ptr::null_mut();
+                    Some(item)
+                }
             }
         }
     }
 
     /// Try to remove an item in the list
     /// ensure this item is in the list now
-    pub unsafe fn del(&mut self, item: *mut MemBlockHead) {
-        if self.head == item {
-            self.head = (*item).nxt;
-        } else {
-            (*(*item).pre).nxt = (*item).nxt;
+    pub fn del(&mut self, item: *mut MemBlockHead) {
+        unsafe{
+            if self.head == item {
+                self.head = (*item).nxt;
+            } else {
+                (*(*item).pre).nxt = (*item).nxt;
+            }
+            if !(*item).nxt.is_null() {
+                (*(*item).nxt).pre = (*item).pre;
+            }
         }
-        if !(*item).nxt.is_null() {
-            (*(*item).nxt).pre = (*item).pre;
-        }
+        
     }
 }
