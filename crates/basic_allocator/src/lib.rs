@@ -61,7 +61,7 @@ impl Heap {
     }
 
     ///init
-    pub fn init(&mut self, heap_start_addr: usize, heap_size: usize) {
+    pub fn init(&mut self, heap_start_addr: usize, heap_size: usize, strategy: &str) {
         assert!(
             heap_start_addr % 4096 == 0,
             "Start address should be page aligned"
@@ -77,6 +77,7 @@ impl Heap {
         self.end_addr = heap_start_addr + heap_size;
         self.push_mem_block(heap_start_addr, heap_size);
         self.total = heap_size;
+        self.set_strategy(strategy);
     }
 
     ///set strategy
@@ -147,12 +148,13 @@ impl Heap {
             unsafe {
                 let addr = block as usize;
                 let bsize = (*block).size();
-                let addr_left = addr + bsize - get_aligned(addr, align) - size - size_of::<usize>();
-                if addr + bsize >= get_aligned(addr, align) + size + size_of::<usize>()
-                    && (res.is_none() || addr_left < now_size)
-                {
-                    now_size = addr_left;
-                    res = Some(block);
+                if addr + bsize >= get_aligned(addr, align) + size + size_of::<usize>() {
+                    let addr_left =
+                        addr + bsize - get_aligned(addr, align) - size - size_of::<usize>();
+                    if res.is_none() || addr_left < now_size {
+                        now_size = addr_left;
+                        res = Some(block);
+                    }
                 }
                 block = (*block).nxt;
             }
@@ -169,12 +171,13 @@ impl Heap {
             unsafe {
                 let addr = block as usize;
                 let bsize = (*block).size();
-                let addr_left = addr + bsize - get_aligned(addr, align) - size - size_of::<usize>();
-                if addr + bsize >= get_aligned(addr, align) + size + size_of::<usize>()
-                    && (res.is_none() || addr_left > now_size)
-                {
-                    now_size = addr_left;
-                    res = Some(block);
+                if addr + bsize >= get_aligned(addr, align) + size + size_of::<usize>() {
+                    let addr_left =
+                        addr + bsize - get_aligned(addr, align) - size - size_of::<usize>();
+                    if res.is_none() || addr_left > now_size {
+                        now_size = addr_left;
+                        res = Some(block);
+                    }
                 }
                 block = (*block).nxt;
             }

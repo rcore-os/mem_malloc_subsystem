@@ -2,11 +2,11 @@ use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use allocator::{
     BasicAllocator, BuddyByteAllocator, SlabByteAllocator, TLSFAllocator, TLSFCAllocator,
 };
-use std::mem::size_of;
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::mem::size_of;
 
 use core::panic;
-use spin::Mutex;
+use std::sync::Mutex;
 
 pub enum AllocType {
     SystemAlloc,
@@ -18,7 +18,7 @@ pub enum AllocType {
 }
 
 pub struct GlobalAllocator {
-    basic_alloc: Mutex<BasicAllocator>,
+    basic_alloc: Mutex<BasicAllocator<0>>,
     buddy_alloc: Mutex<BuddyByteAllocator>,
     slab_alloc: Mutex<SlabByteAllocator>,
     tlsf_c_alloc: Mutex<TLSFCAllocator>,
@@ -60,14 +60,16 @@ impl GlobalAllocator {
     pub unsafe fn init_basic(&mut self, strategy: &str) {
         self.basic_alloc
             .lock()
+            .unwrap()
             .init(self.heap_arddress, self.heap_size);
-        self.basic_alloc.lock().set_strategy(strategy);
+        self.basic_alloc.lock().unwrap().set_strategy(strategy);
         self.alloc_type = AllocType::BasicAlloc;
     }
 
     pub unsafe fn init_buddy(&mut self) {
         self.buddy_alloc
             .lock()
+            .unwrap()
             .init(self.heap_arddress, self.heap_size);
         self.alloc_type = AllocType::BuddyAlloc;
     }
@@ -75,6 +77,7 @@ impl GlobalAllocator {
     pub unsafe fn init_slab(&mut self) {
         self.slab_alloc
             .lock()
+            .unwrap()
             .init(self.heap_arddress, self.heap_size);
         self.alloc_type = AllocType::SlabAlloc;
     }
@@ -82,6 +85,7 @@ impl GlobalAllocator {
     pub unsafe fn init_tlsf_c(&mut self) {
         self.tlsf_c_alloc
             .lock()
+            .unwrap()
             .init(self.heap_arddress, self.heap_size);
         self.alloc_type = AllocType::TLSFCAlloc;
     }
@@ -89,6 +93,7 @@ impl GlobalAllocator {
     pub unsafe fn init_tlsf_rust(&mut self) {
         self.tlsf_rust_alloc
             .lock()
+            .unwrap()
             .init(self.heap_arddress, self.heap_size);
         self.alloc_type = AllocType::TLSFRustAlloc;
     }
@@ -108,7 +113,7 @@ impl GlobalAllocator {
             }
             AllocType::BasicAlloc => {
                 FLAG = true;
-                if let Ok(ptr) = self.basic_alloc.lock().alloc(size, align_pow2) {
+                if let Ok(ptr) = self.basic_alloc.lock().unwrap().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else {
@@ -117,7 +122,7 @@ impl GlobalAllocator {
             }
             AllocType::BuddyAlloc => {
                 FLAG = true;
-                if let Ok(ptr) = self.buddy_alloc.lock().alloc(size, align_pow2) {
+                if let Ok(ptr) = self.buddy_alloc.lock().unwrap().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else {
@@ -126,7 +131,7 @@ impl GlobalAllocator {
             }
             AllocType::SlabAlloc => {
                 FLAG = true;
-                if let Ok(ptr) = self.slab_alloc.lock().alloc(size, align_pow2) {
+                if let Ok(ptr) = self.slab_alloc.lock().unwrap().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else {
@@ -135,7 +140,7 @@ impl GlobalAllocator {
             }
             AllocType::TLSFCAlloc => {
                 FLAG = true;
-                if let Ok(ptr) = self.tlsf_c_alloc.lock().alloc(size, align_pow2) {
+                if let Ok(ptr) = self.tlsf_c_alloc.lock().unwrap().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else {
@@ -144,7 +149,7 @@ impl GlobalAllocator {
             }
             AllocType::TLSFRustAlloc => {
                 FLAG = true;
-                if let Ok(ptr) = self.tlsf_rust_alloc.lock().alloc(size, align_pow2) {
+                if let Ok(ptr) = self.tlsf_rust_alloc.lock().unwrap().alloc(size, align_pow2) {
                     FLAG = false;
                     return Ok(ptr);
                 } else {
@@ -168,27 +173,42 @@ impl GlobalAllocator {
             }
             AllocType::BasicAlloc => {
                 FLAG = true;
-                self.basic_alloc.lock().dealloc(pos, size, align_pow2);
+                self.basic_alloc
+                    .lock()
+                    .unwrap()
+                    .dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
             AllocType::BuddyAlloc => {
                 FLAG = true;
-                self.buddy_alloc.lock().dealloc(pos, size, align_pow2);
+                self.buddy_alloc
+                    .lock()
+                    .unwrap()
+                    .dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
             AllocType::SlabAlloc => {
                 FLAG = true;
-                self.slab_alloc.lock().dealloc(pos, size, align_pow2);
+                self.slab_alloc
+                    .lock()
+                    .unwrap()
+                    .dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
             AllocType::TLSFCAlloc => {
                 FLAG = true;
-                self.tlsf_c_alloc.lock().dealloc(pos, size, align_pow2);
+                self.tlsf_c_alloc
+                    .lock()
+                    .unwrap()
+                    .dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
             AllocType::TLSFRustAlloc => {
                 FLAG = true;
-                self.tlsf_rust_alloc.lock().dealloc(pos, size, align_pow2);
+                self.tlsf_rust_alloc
+                    .lock()
+                    .unwrap()
+                    .dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
         }
@@ -197,33 +217,33 @@ impl GlobalAllocator {
     pub fn total_bytes(&self) -> usize {
         match self.alloc_type {
             AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().total_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().total_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().total_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().total_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().total_bytes(),
+            AllocType::BasicAlloc => self.basic_alloc.lock().unwrap().total_bytes(),
+            AllocType::BuddyAlloc => self.buddy_alloc.lock().unwrap().total_bytes(),
+            AllocType::SlabAlloc => self.slab_alloc.lock().unwrap().total_bytes(),
+            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().unwrap().total_bytes(),
+            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().unwrap().total_bytes(),
         }
     }
 
     pub fn used_bytes(&self) -> usize {
         match self.alloc_type {
             AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().used_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().used_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().used_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().used_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().used_bytes(),
+            AllocType::BasicAlloc => self.basic_alloc.lock().unwrap().used_bytes(),
+            AllocType::BuddyAlloc => self.buddy_alloc.lock().unwrap().used_bytes(),
+            AllocType::SlabAlloc => self.slab_alloc.lock().unwrap().used_bytes(),
+            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().unwrap().used_bytes(),
+            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().unwrap().used_bytes(),
         }
     }
 
     pub fn available_bytes(&self) -> usize {
         match self.alloc_type {
             AllocType::SystemAlloc => 0,
-            AllocType::BasicAlloc => self.basic_alloc.lock().available_bytes(),
-            AllocType::BuddyAlloc => self.buddy_alloc.lock().available_bytes(),
-            AllocType::SlabAlloc => self.slab_alloc.lock().available_bytes(),
-            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().available_bytes(),
-            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().available_bytes(),
+            AllocType::BasicAlloc => self.basic_alloc.lock().unwrap().available_bytes(),
+            AllocType::BuddyAlloc => self.buddy_alloc.lock().unwrap().available_bytes(),
+            AllocType::SlabAlloc => self.slab_alloc.lock().unwrap().available_bytes(),
+            AllocType::TLSFCAlloc => self.tlsf_c_alloc.lock().unwrap().available_bytes(),
+            AllocType::TLSFRustAlloc => self.tlsf_rust_alloc.lock().unwrap().available_bytes(),
         }
     }
 }

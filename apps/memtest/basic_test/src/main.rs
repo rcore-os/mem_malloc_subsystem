@@ -8,7 +8,12 @@ extern crate alloc;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use axalloc::GLOBAL_ALLOCATOR;
-use libax::rand::{rand_u32, rand_usize};
+use libax::rand::rand_u32;
+
+/// rand usize
+pub fn rand_usize() -> usize {
+    ((rand_u32() as usize) << 32) | (rand_u32() as usize)
+}
 
 ///memory chk
 pub fn memory_chk() {

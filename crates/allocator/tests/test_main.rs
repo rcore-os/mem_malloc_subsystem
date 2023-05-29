@@ -1,26 +1,39 @@
 #![feature(ptr_alignment_type)]
 mod basic_test;
-use basic_test::basic_test;
+use basic_test::{basic_test, rand_u32, rand_usize, srand};
 mod global_allocator;
-use global_allocator::GLOBAL_ALLOCATOR;
-use libax::rand::{srand,rand_usize,rand_u32};
-use std::vec::Vec;
-use std::{
-    alloc::Layout,
-    ffi::c_ulonglong,
-};
 use core::panic;
-use std::ffi::c_int;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use global_allocator::GLOBAL_ALLOCATOR;
+use std::ffi::c_int;
 use std::thread;
 use std::time::Duration;
+use std::vec::Vec;
+use std::{alloc::Layout, ffi::c_ulonglong};
+//use allocator_test::*;
 
-
-pub type CallBack = unsafe extern "C" fn(c_int) -> c_int;
-#[link(name = "test")]
+#[link(name = "allocator_test")]
 extern "C" {
     pub fn hello(a: c_int, cb: CallBack) -> c_int;
+    pub fn mi_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
+    pub fn malloc_large_test_start(
+        cb1: CallBackMalloc,
+        cb2: CallBackMallocAligned,
+        cb3: CallBackFree,
+    );
+    pub fn glibc_bench_test_start(
+        cb1: CallBackMalloc,
+        cb2: CallBackMallocAligned,
+        cb3: CallBackFree,
+    );
+    pub fn multi_thread_c_test_start(
+        cb1: CallBackMalloc,
+        cb2: CallBackMallocAligned,
+        cb3: CallBackFree,
+    );
 }
+
+pub type CallBack = unsafe extern "C" fn(c_int) -> c_int;
 pub unsafe extern "C" fn cb_func(x: c_int) -> c_int {
     println!("hello rust! {:#?}", x);
     return x * x + 1;
@@ -62,12 +75,7 @@ pub unsafe extern "C" fn cb_free_func(ptr: c_ulonglong, size: c_ulonglong) {
     );
 }
 
-#[link(name = "mitest")]
-extern "C" {
-    pub fn mi_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
-}
 pub fn mi_test() {
-    //return;
     println!("Mi alloc test begin...");
     let t0 = std::time::Instant::now();
     unsafe {
@@ -76,11 +84,6 @@ pub fn mi_test() {
     let t1 = std::time::Instant::now();
     println!("time: {:#?}", t1 - t0);
     println!("Mi alloc test OK!");
-}
-
-#[link(name = "malloc_large")]
-extern "C" {
-    pub fn malloc_large_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
 }
 pub fn malloc_large_test() {
     println!("Malloc large test begin...");
@@ -92,11 +95,6 @@ pub fn malloc_large_test() {
     println!("time: {:#?}", t1 - t0);
     println!("Malloc large test OK!");
 }
-
-#[link(name = "glibc_bench")]
-extern "C" {
-    pub fn glibc_bench_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
-}
 pub fn glibc_bench_test() {
     println!("Glibc bench test begin...");
     let t0 = std::time::Instant::now();
@@ -106,11 +104,6 @@ pub fn glibc_bench_test() {
     let t1 = std::time::Instant::now();
     println!("time: {:#?}", t1 - t0);
     println!("Glibc bench test OK!");
-}
-
-#[link(name = "multi_thread_c")]
-extern "C" {
-    pub fn multi_thread_c_test_start(cb1: CallBackMalloc, cb2: CallBackMallocAligned, cb3: CallBackFree);
 }
 pub fn multi_thread_c_test() {
     println!("Multi thread C test begin...");
@@ -122,8 +115,6 @@ pub fn multi_thread_c_test() {
     println!("time: {:#?}", t1 - t0);
     println!("Multi thread C test OK!");
 }
-
-
 
 ///memory chk
 pub fn memory_chk() {
@@ -142,7 +133,7 @@ pub fn memory_chk() {
     }
 }
 
-/// new aligned memory 
+/// new aligned memory
 pub fn new_mem(size: usize, align: usize) -> usize {
     unsafe {
         if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, align)) {
@@ -212,8 +203,6 @@ pub fn align_test() {
     println!("Align alloc test OK!");
 }
 
-
-
 const NUM_TASKS: usize = 10;
 const MUN_TURN: usize = 100;
 const NUM_ARRAY_PRE_THREAD: usize = 1000;
@@ -227,7 +216,7 @@ pub fn multi_thread_test() {
     srand(2333);
     println!("Multi thread memory allocation test begin.");
     let t0 = std::time::Instant::now();
-    unsafe{
+    unsafe {
         MEMORY_POOL.clear();
         MEMORY_SIZE.clear();
         for _ in 0..NUM_TASKS * NUM_ARRAY_PRE_THREAD {
@@ -241,12 +230,14 @@ pub fn multi_thread_test() {
         FINISHED_TASKS.store(0, Ordering::Relaxed);
         for i in 0..NUM_TASKS {
             thread::spawn(move || {
-                unsafe{
+                unsafe {
                     let tid = i;
                     for j in 0..NUM_ARRAY_PRE_THREAD {
                         let size = (1_usize << (rand_u32() % 12)) + (1_usize << (rand_u32() % 12));
                         let idx = j * NUM_TASKS + tid;
-                        if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8)) {
+                        if let Ok(ptr) =
+                            GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8))
+                        {
                             //println!("successfully alloc: {:#?} {:#x} {:#?}", idx,ptr,size);
                             MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
                             MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
@@ -255,12 +246,13 @@ pub fn multi_thread_test() {
                         }
                     }
 
-                    for j in (NUM_ARRAY_PRE_THREAD >> 1) .. NUM_ARRAY_PRE_THREAD{
+                    for j in (NUM_ARRAY_PRE_THREAD >> 1)..NUM_ARRAY_PRE_THREAD {
                         let idx = j * NUM_TASKS + tid;
                         let addr = MEMORY_POOL[idx].load(Ordering::Relaxed);
                         let size = MEMORY_SIZE[idx].load(Ordering::Relaxed);
                         //println!("dealloc: {:#?} {:#x} {:#?}", idx,addr,size);
-                        GLOBAL_ALLOCATOR.dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
+                        GLOBAL_ALLOCATOR
+                            .dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
                         MEMORY_POOL[idx].store(0_usize, Ordering::Relaxed);
                         MEMORY_SIZE[idx].store(0_usize, Ordering::Relaxed);
                     }
@@ -277,12 +269,16 @@ pub fn multi_thread_test() {
         FINISHED_TASKS.store(0, Ordering::Relaxed);
         for i in 0..NUM_TASKS {
             thread::spawn(move || {
-                unsafe{
+                unsafe {
                     let tid = i;
-                    for j in 0..(NUM_ARRAY_PRE_THREAD >> 1){
+                    for j in 0..(NUM_ARRAY_PRE_THREAD >> 1) {
                         let size = (1_usize << (rand_u32() % 12)) + (1_usize << (rand_u32() % 12));
-                        let idx = NUM_TASKS * NUM_ARRAY_PRE_THREAD / 2 + tid * NUM_ARRAY_PRE_THREAD / 2 + j;
-                        if let Ok(ptr) = GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8)) {
+                        let idx = NUM_TASKS * NUM_ARRAY_PRE_THREAD / 2
+                            + tid * NUM_ARRAY_PRE_THREAD / 2
+                            + j;
+                        if let Ok(ptr) =
+                            GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8))
+                        {
                             MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
                             MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
                         } else {
@@ -290,14 +286,15 @@ pub fn multi_thread_test() {
                         }
                     }
 
-                    for j in 0..NUM_ARRAY_PRE_THREAD{
+                    for j in 0..NUM_ARRAY_PRE_THREAD {
                         let idx = j * NUM_TASKS + tid;
                         while MEMORY_SIZE[idx].load(Ordering::Relaxed) == 0 {
                             thread::sleep(Duration::from_millis(10));
                         }
                         let addr = MEMORY_POOL[idx].load(Ordering::Relaxed);
                         let size = MEMORY_SIZE[idx].load(Ordering::Relaxed);
-                        GLOBAL_ALLOCATOR.dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
+                        GLOBAL_ALLOCATOR
+                            .dealloc(addr as _, Layout::from_size_align_unchecked(size, 8));
                         MEMORY_POOL[idx].store(0_usize, Ordering::Relaxed);
                         MEMORY_SIZE[idx].store(0_usize, Ordering::Relaxed);
                     }
@@ -315,13 +312,32 @@ pub fn multi_thread_test() {
     println!("Multi thread memory allocation test OK!");
 }
 
+//#[test]
+fn system_alloc_test() {
+    unsafe {
+        GLOBAL_ALLOCATOR.init_heap();
+    }
+    call_back_test(233);
+    println!("Running memory tests...");
 
+    println!("system alloc test:");
+    unsafe {
+        GLOBAL_ALLOCATOR.init_system();
+    }
+    align_test();
+    basic_test();
+    mi_test();
+    malloc_large_test();
+    glibc_bench_test();
+    multi_thread_test();
+    multi_thread_c_test();
+    println!("system test passed!");
+    println!("*****************************");
+}
 
 #[test]
 fn test_start() {
     srand(2333);
-    axlog::init();
-    axlog::set_max_level("debug");
     unsafe {
         GLOBAL_ALLOCATOR.init_heap();
     }
@@ -422,6 +438,7 @@ fn test_start() {
     unsafe {
         GLOBAL_ALLOCATOR.init_system();
     }
+
 
     println!("slab alloc test:");
     unsafe {
