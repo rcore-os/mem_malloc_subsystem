@@ -3,10 +3,10 @@
 //!
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
-use tlsf_c_allocator::Heap;
+use tlsf_allocator::HeapC;
 
 pub struct TLSFCAllocator {
-    inner: Option<Heap>,
+    inner: Option<HeapC>,
 }
 
 impl TLSFCAllocator {
@@ -14,18 +14,18 @@ impl TLSFCAllocator {
         Self { inner: None }
     }
 
-    fn inner_mut(&mut self) -> &mut Heap {
+    fn inner_mut(&mut self) -> &mut HeapC {
         self.inner.as_mut().unwrap()
     }
 
-    fn inner(&self) -> &Heap {
+    fn inner(&self) -> &HeapC {
         self.inner.as_ref().unwrap()
     }
 }
 
 impl BaseAllocator for TLSFCAllocator {
     fn init(&mut self, start: usize, size: usize) {
-        self.inner = Some(Heap::new());
+        self.inner = Some(HeapC::new());
         self.inner_mut().init(start, size);
     }
 
