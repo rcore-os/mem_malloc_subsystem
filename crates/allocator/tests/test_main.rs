@@ -1,14 +1,14 @@
 #![feature(ptr_alignment_type)]
 mod global_allocator;
+use allocator_test;
+use allocator_test::*;
 use core::panic;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use global_allocator::GLOBAL_ALLOCATOR;
+use std::alloc::Layout;
 use std::thread;
 use std::time::Duration;
 use std::vec::Vec;
-use std::alloc::Layout;
-use allocator_test;
-use core::sync::atomic::{AtomicUsize, Ordering};
-use allocator_test::*;
 
 pub fn basic_test() {
     println!("Basic alloc test begin...");
@@ -187,7 +187,7 @@ pub fn multi_thread_test() {
     println!("Multi thread memory allocation test OK!");
 }
 
-#[test]
+//#[test]
 fn system_alloc_test() {
     srand(2333);
     unsafe {
@@ -208,7 +208,7 @@ fn system_alloc_test() {
     println!("*****************************");
 }
 
-#[test]
+//#[test]
 fn tlsf_rust_alloc_test() {
     srand(2333);
     unsafe {
@@ -232,7 +232,7 @@ fn tlsf_rust_alloc_test() {
     }
 }
 
-#[test]
+//#[test]
 fn tlsf_c_alloc_test() {
     srand(2333);
     unsafe {
@@ -256,7 +256,7 @@ fn tlsf_c_alloc_test() {
     }
 }
 
-#[test]
+//#[test]
 fn first_fit_alloc_test() {
     srand(2333);
     unsafe {
@@ -280,7 +280,7 @@ fn first_fit_alloc_test() {
     }
 }
 
-#[test]
+//#[test]
 fn best_fit_alloc_test() {
     srand(2333);
     unsafe {
@@ -304,7 +304,7 @@ fn best_fit_alloc_test() {
     }
 }
 
-#[test]
+//#[test]
 fn worst_fit_alloc_test() {
     srand(2333);
     unsafe {
@@ -328,7 +328,7 @@ fn worst_fit_alloc_test() {
     }
 }
 
-#[test]
+//#[test]
 fn buddy_fit_alloc_test() {
     srand(2333);
     unsafe {
@@ -352,8 +352,8 @@ fn buddy_fit_alloc_test() {
     }
 }
 
-#[test]
-fn slab_fit_alloc_test() {
+//#[test]
+fn slab_alloc_test() {
     srand(2333);
     unsafe {
         GLOBAL_ALLOCATOR.init_heap();
@@ -374,4 +374,16 @@ fn slab_fit_alloc_test() {
     unsafe {
         GLOBAL_ALLOCATOR.init_system();
     }
+}
+
+#[test]
+fn test_start() {
+    system_alloc_test();
+    tlsf_rust_alloc_test();
+    tlsf_c_alloc_test();
+    first_fit_alloc_test();
+    best_fit_alloc_test();
+    worst_fit_alloc_test();
+    buddy_fit_alloc_test();
+    slab_alloc_test();
 }
