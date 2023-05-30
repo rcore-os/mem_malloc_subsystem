@@ -29,7 +29,7 @@
    multi-threaded using thread-arena, and main arena with SINGLE_THREAD_P
    false.  */
 
-#define NUM_ITERS 2000000
+#define NUM_ITERS 1000000
 #define NUM_ALLOCS 4
 #define MAX_ALLOCS 1600
 
