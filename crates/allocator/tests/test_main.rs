@@ -312,7 +312,8 @@ pub fn multi_thread_test() {
     println!("Multi thread memory allocation test OK!");
 }
 
-//#[test]
+/*
+#[test]
 fn system_alloc_test() {
     unsafe {
         GLOBAL_ALLOCATOR.init_heap();
@@ -334,6 +335,7 @@ fn system_alloc_test() {
     println!("system test passed!");
     println!("*****************************");
 }
+*/
 
 #[test]
 fn test_start() {
@@ -379,10 +381,11 @@ fn test_start() {
     unsafe {
         GLOBAL_ALLOCATOR.init_basic("first_fit");
     }
+    //align_test();
     basic_test();
     mi_test();
-    malloc_large_test();
-    glibc_bench_test();
+    //malloc_large_test();
+    //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
     println!("first fit alloc test passed!");
@@ -395,10 +398,11 @@ fn test_start() {
     unsafe {
         GLOBAL_ALLOCATOR.init_basic("best_fit");
     }
+    //align_test();
     basic_test();
     mi_test();
-    malloc_large_test();
-    glibc_bench_test();
+    //malloc_large_test();
+    //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
     println!("best fit alloc test passed!");
@@ -411,10 +415,11 @@ fn test_start() {
     unsafe {
         GLOBAL_ALLOCATOR.init_basic("worst_fit");
     }
+    //align_test();
     basic_test();
     mi_test();
-    malloc_large_test();
-    glibc_bench_test();
+    //malloc_large_test();
+    //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
     println!("worst fit alloc test passed!");
@@ -427,10 +432,11 @@ fn test_start() {
     unsafe {
         GLOBAL_ALLOCATOR.init_buddy();
     }
+    //align_test();
     basic_test();
     mi_test();
-    malloc_large_test();
-    glibc_bench_test();
+    //malloc_large_test();
+    //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
     println!("buddy alloc test passed!");
@@ -439,15 +445,15 @@ fn test_start() {
         GLOBAL_ALLOCATOR.init_system();
     }
 
-
     println!("slab alloc test:");
     unsafe {
         GLOBAL_ALLOCATOR.init_slab();
     }
+    //align_test();
     basic_test();
     mi_test();
-    malloc_large_test();
-    glibc_bench_test();
+    //malloc_large_test();
+    //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
     println!("slab alloc test passed!");

@@ -13,7 +13,8 @@ int mtc_size[NUM_TASKS * NUM_ARRAY_PRE_THREAD];
 pthread_t mtc_th[NUM_TASKS];
 
 
-void func1(int tid){
+void* func1(void* _tid){
+    int tid = *((int*)_tid);
     //printf("thread %d func 1\n",tid);
     for(int i = 0;i < NUM_ARRAY_PRE_THREAD;++i){
         int size = (1 << (rand() % 12)) + (1 << (rand() % 12));
@@ -33,9 +34,11 @@ void func1(int tid){
         //printf("(((%d %d %d\n",tid,idx,size);
     }
     //printf("thread %d func 1 end\n",tid);
+    return NULL;
 }
 
-void func2(int tid){
+void* func2(void* _tid){
+    int tid = *((int*)_tid);
     //printf("thread %d func 2\n",tid);
     /*
     for(int i = 0;i < NUM_ARRAY_PRE_THREAD / 2;++i){
@@ -61,27 +64,32 @@ void func2(int tid){
         mtc_size[idx] = 0;
     }
     //printf("thread %d func 2 end\n",tid);
+    return NULL;
 }
 
 void multi_thread_c_test_start(CallBackMalloc _cb1,CallBackMallocAligned _cb2,CallBackFree _cb3) {
-    printf("Hello test!!!\n");
     cb1 = _cb1;
     cb2 = _cb2;
     cb3 = _cb3;
-    printf("Hello multi_test_c!\n");
+    printf("Hello multi_thread_test_c!\n");
     srand(2333);
+    int *_tid = multi_thread_c_malloc(NUM_TASKS * sizeof(int));
+    for(int j = 0;j < NUM_TASKS;++j){
+        _tid[j] = j;
+    }
     for(int i = 0;i < MUN_TURN;++i){
         for(int j = 0;j < NUM_TASKS;++j){
-            pthread_create(&mtc_th[j],NULL,func1,j);
+            pthread_create(&mtc_th[j],NULL,func1,&_tid[j]);
         }
         for(int j = 0;j < NUM_TASKS;++j){
             pthread_join(mtc_th[j],NULL);
         }
         for(int j = 0;j < NUM_TASKS;++j){
-            pthread_create(&mtc_th[j],NULL,func2,j);
+            pthread_create(&mtc_th[j],NULL,func2,&_tid[j]);
         }
         for(int j = 0;j < NUM_TASKS;++j){
             pthread_join(mtc_th[j],NULL);
         }
     }
+    multi_thread_c_free(_tid, NUM_TASKS * sizeof(int));
 }

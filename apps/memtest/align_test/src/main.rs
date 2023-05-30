@@ -51,7 +51,7 @@ pub fn align_test() {
         if (rand_u32() % 3 != 0) | (nw == 0) {
             // add a block
             let size = (((1 << (rand_u32() & 15)) as f64)
-                * (1.0 + (rand_u32() as f64) / (0xffffffff as u32 as f64)))
+                * (1.0 + (rand_u32() as f64) / (0xffffffff_u32 as f64)))
                 as usize;
             let align = (1 << (rand_u32() & 7)) as usize;
             let addr = new_mem(size, align);
@@ -68,7 +68,7 @@ pub fn align_test() {
             let addr = v[p[idx]];
             let size = v2[p[idx]];
             let align = v3[p[idx]];
-            GLOBAL_ALLOCATOR.dealloc(addr, size as usize, align);
+            GLOBAL_ALLOCATOR.dealloc(addr, size, align);
             nw -= 1;
             p[idx] = p[nw];
             p.pop();
@@ -79,7 +79,7 @@ pub fn align_test() {
         let addr = v[p[idx]];
         let size = v2[p[idx]];
         let align = v3[p[idx]];
-        GLOBAL_ALLOCATOR.dealloc(addr, size as usize, align);
+        GLOBAL_ALLOCATOR.dealloc(addr, size, align);
     }
     let t1 = libax::time::Instant::now();
     println!("time: {:#?}", t1.duration_since(t0));

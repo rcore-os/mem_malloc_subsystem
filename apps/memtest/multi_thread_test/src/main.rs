@@ -24,13 +24,13 @@ fn main() {
     srand(2333);
     println!("Multi thread memory allocation test begin.");
     unsafe {
-        for i in 0..NUM_TASKS * NUM_ARRAY_PRE_THREAD {
+        for _ in 0..NUM_TASKS * NUM_ARRAY_PRE_THREAD {
             MEMORY_POOL.push(AtomicUsize::new(0));
             MEMORY_SIZE.push(AtomicUsize::new(0));
         }
     }
 
-    for turn in 0..MUN_TURN {
+    for _ in 0..MUN_TURN {
         // alloc memory and free half (only free the memory allocated by itself)
         FINISHED_TASKS.store(0, Ordering::Relaxed);
         for i in 0..NUM_TASKS {

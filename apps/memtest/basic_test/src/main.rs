@@ -84,14 +84,11 @@ pub fn test_vec_2(n: usize, m: usize) {
 
     for i in 1..n {
         let o: usize = rand_usize() % (i + 1);
-        let tmp = p[i];
-        p[i] = p[o];
-        p[o] = tmp;
+        p.swap(i, o);
     }
-    for i in 0..n {
-        let o = p[i];
+    for o in p.iter().take(n) {
         let tmp: Vec<usize> = Vec::new();
-        v[o] = tmp;
+        v[*o] = tmp;
     }
     memory_chk();
     println!("test_vec2() OK!");
@@ -114,10 +111,10 @@ pub fn test_vec_3(n: usize, k1: usize, k2: usize) {
         }
     }
     memory_chk();
-    for i in 0..n * 4 {
+    for (i, o) in v.iter_mut().enumerate().take(n * 4) {
         if i % 2 == 1 {
             let tmp: Vec<usize> = Vec::new();
-            v[i] = tmp;
+            *o = tmp;
         }
     }
     for i in 0..n {
