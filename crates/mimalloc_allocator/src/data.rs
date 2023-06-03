@@ -146,7 +146,8 @@ pub fn get_queue_id(size: usize) -> usize{
         return HUGE_QUEUE;
     } 
     let lg = my_log2(_size);
-    lg * 4 - 5 + ((_size >> (lg - 3)) & 3)
+    //log::debug!("get queue id: {:#?} {:#?} {:#?} {:#?}",size,_size,lg,((_size >> (lg - 2)) & 3));
+    lg * 4 - 5 + ((_size >> (lg - 2)) & 3)
 }
 
 /// 获得向上取整的mimalloc处理的size（8字节对齐，仅含有高3位）
@@ -156,12 +157,12 @@ pub fn get_upper_size(size: usize) -> usize{
         return _size << 3;
     }
     let lg = my_log2(_size);
-    let tmp = _size >> (lg - 3);
-    if _size == (tmp << (lg - 3)){
-        tmp << lg
+    let tmp = _size >> (lg - 2);
+    if _size == (tmp << (lg - 2)){
+        tmp << (lg + 1)
     }
     else{
-        (tmp + 1) << lg
+        (tmp + 1) << (lg + 1)
     }
 }
 
@@ -225,13 +226,16 @@ impl Page{
 
     /// 向free链表里插入一项
     pub fn push_front(&mut self, mut block: BlockPointer){
+        //log::debug!("push front: {:#x} {:#x} {:#x}",block.addr,block.get_ref().next.addr,self.free_list.addr);
         block.get_mut_ref().next = self.free_list;
         self.free_list = block;
+        //log::debug!("push front end: {:#x} {:#x} {:#x}",block.addr,block.get_ref().next.addr,self.free_list.addr);
     }
 
     /// 把free链表头删除
     pub fn pop_front(&mut self){
         let mut blk = self.free_list;
+        //log::debug!("pop front: {:#x} {:#x}",blk.addr,blk.get_ref().next.addr);
         self.free_list = blk.get_ref().next;
         blk.get_mut_ref().next = BlockPointer{
             addr: 0,
@@ -240,9 +244,11 @@ impl Page{
 
     /// 找一个block
     pub fn get_block(&mut self) -> usize{
+        //log::debug!("get block: {:#x} {:#x} {:#?} {:#x}",self.free_list.addr,self.capacity,self.block_size,self.end_addr);
         if self.free_list.addr != 0{
             let ans = self.free_list;
             self.pop_front();
+            //log::debug!("get block end: {:#x}",self.free_list.addr);
             ans.addr
         }
         else if self.capacity + self.block_size <= self.end_addr{
@@ -299,7 +305,7 @@ impl MiHeap{
     }
     /// 向链表里插入一个page
     pub fn insert_to_list(&mut self, idx: usize, mut page: PagePointer){
-        
+        //log::debug!("insert to list: {:#?} {:#x} {:#x} {:#x}",idx,page.addr,page.get_ref().next_page.addr,self.pages[idx].addr);
         if self.pages[idx].addr != 0{
             let nxt_page = self.pages[idx].get_mut_ref();
             nxt_page.prev_page = page;
@@ -310,13 +316,16 @@ impl MiHeap{
             addr: 0,
         };
         nw_page.next_page = self.pages[idx];
+        //log::debug!("{:#x}",nw_page.next_page.addr);
         self.pages[idx] = page;
     }
     /// 从链表中删除一个page
     pub fn delete_from_list(&mut self, idx: usize, mut page: PagePointer){
+        //log::debug!("delete from list: {:#?} {:#x} {:#x}",idx,page.addr,self.pages[idx].addr);
         let nw_page = page.get_mut_ref();
         let mut prv = nw_page.prev_page;
         let mut nxt = nw_page.next_page;
+        //log::debug!("{:#x} {:#x}",prv.addr,nxt.addr);
         nw_page.prev_page = PagePointer{
             addr: 0,
         };

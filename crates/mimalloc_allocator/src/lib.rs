@@ -56,6 +56,7 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub fn init(&mut self, heap_start_addr: usize, heap_size: usize) {
+        // log::debug!("{:#x} {:#?}",heap_start_addr,heap_size);
         assert!(
             heap_start_addr % MIN_SEGMENT_SIZE == 0,
             "Start address should be 4MB aligned"
@@ -70,11 +71,13 @@ impl Heap {
         self.unused_begin_tmp = 0;
         self.unused_end_tmp = 0;
         self.get_mut_ref().init();
+        self.create_small_segment();
     }
 
     /// 新建一个small类型的segment，并将其中的page塞入heap的free链表中
     /// 从unused_begin中取4MB内存，如果不够则返回false
     pub fn create_small_segment(&mut self) -> bool{
+        log::debug!("create small segment: {:#x} {:#x}",self.unused_begin,self.unused_end);
         if self.unused_begin == self.unused_end{
             return false;
         }
@@ -137,7 +140,7 @@ impl Heap {
             addr: begin_addr,
         };
         let seg = seg_addr.get_mut_ref();
-        seg.init(begin_addr, MIN_SEGMENT_SIZE, PageKind::HugePage);
+        seg.init(begin_addr, size, PageKind::HugePage);
         let page_addr = PagePointer{
             addr: &seg.pages[0] as *const Page as usize,
         };
@@ -154,6 +157,7 @@ impl Heap {
     /// This function is unsafe because it can cause undefined behavior if the
     /// given address is invalid.
     pub fn add_memory(&mut self, start_addr: usize, heap_size: usize) {
+        //log::debug!("add memory: {:#x} {:#?}",start_addr,heap_size);
         assert!(
             start_addr % MIN_SEGMENT_SIZE == 0,
             "Start address should be 4MB aligned"
@@ -192,8 +196,10 @@ impl Heap {
 
 
         let idx = get_queue_id(size);
+        //log::debug!("alloc: {:#?} {:#?}, idx = {:#?}",layout.size(),size,idx);
         // 找一个page
         let mut page = self.get_mut_ref().get_page(idx,size);
+        //log::debug!("page addr: {:#x}",page.addr);
         // 如果没找到
         if page.addr == 0{
             let pagetype;
@@ -211,9 +217,28 @@ impl Heap {
                 PageKind::SmallPage => {page = self.get_mut_ref().pages[FREE_SMALL_PAGE_QUEUE];}
                 _ => {page = self.get_mut_ref().tmp_page;} 
             }
-            // 还找不到就寄了
+            // 还找不到，尝试创建一个段，如果创建不了就寄了
             if page.addr == 0{
-                return Err(AllocError);
+                match pagetype{
+                    PageKind::SmallPage => {
+                        if !self.create_small_segment(){
+                            return Err(AllocError);
+                        }
+                        page = self.get_mut_ref().pages[FREE_SMALL_PAGE_QUEUE];
+                    }
+                    PageKind::MediumPage => {
+                        if !self.create_medium_segment(){
+                            return Err(AllocError);
+                        }
+                        page = self.get_mut_ref().tmp_page;
+                    }
+                    PageKind::HugePage => {
+                        if !self.create_huge_segment(alignto(size + size_of::<Segment>(),MIN_SEGMENT_SIZE)){
+                            return Err(AllocError);
+                        }
+                        page = self.get_mut_ref().tmp_page;
+                    }
+                }
             }
             
             page.get_mut_ref().block_size = size;
@@ -226,12 +251,18 @@ impl Heap {
             self.get_mut_ref().insert_to_list(idx, page);
         }
 
+        //log::debug!("page addr: {:#x} {:#x}",page.addr,page.get_ref().next_page.addr);
+
         // 获取一个block
         let addr = page.get_mut_ref().get_block();
 
+        //log::debug!("addr: {:#x}",addr);
+
         // 如果这个块从不满变为满，要塞进full queue里
         if page.get_ref().is_full(){
+            //log::debug!("full: {:#x} {:#x}",page.addr,self.get_ref().pages[idx].addr);
             self.get_mut_ref().delete_from_list(idx, page);
+            //log::debug!("{:#x}",self.get_ref().pages[idx].addr);
             self.get_mut_ref().add_full_page(page);
         }
 
@@ -261,15 +292,18 @@ impl Heap {
         
         // 先找到这个块所在的页
         let mut page = get_page(ptr);
+        let flag = page.get_ref().is_full();
         page.get_mut_ref().push_front(BlockPointer{
             addr: ptr,
         });
 
         //如果这个块从满变为不满，要塞回原来的queue
-        if !page.get_ref().is_full(){
+        if flag && !page.get_ref().is_full(){
             self.get_mut_ref().del_full_page(page);
             self.get_mut_ref().insert_to_list(idx, page);
         }
+
+        
     }
 
     /// get total bytes

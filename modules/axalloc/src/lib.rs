@@ -84,19 +84,36 @@ impl GlobalAllocator {
     /// a small region (32 KB) to initialize the byte allocator. Therefore,
     /// the given region must be larger than 32 KB.
     pub fn init(&self, start_vaddr: usize, size: usize) {
+        //log::debug!("init: start_vaddr = {:#x}, size = {:#?}",start_vaddr,size);
         assert!(size > MIN_HEAP_SIZE);
         let init_heap_size = MIN_HEAP_SIZE;
         self.palloc.lock().init(start_vaddr, size);
-        let heap_ptr = self
-            .alloc_pages(init_heap_size / PAGE_SIZE, PAGE_SIZE)
-            .unwrap();
-        self.balloc.lock().init(heap_ptr, init_heap_size);
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "alloc-mimalloc")]{
+                // mimalloc中，申请的内存必须是4MB对齐的
+                // alloc_pages似乎有bug，无法返回4MB对齐的地址
+                let heap_ptr = self
+                    .alloc_pages(init_heap_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)
+                    //.alloc_pages(init_heap_size / PAGE_SIZE, MIN_HEAP_SIZE)
+                    .unwrap();
+                // let new_heap_ptr = heap_ptr;
+                let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
+            } else{
+                let heap_ptr = self
+                    .alloc_pages(init_heap_size / PAGE_SIZE, PAGE_SIZE)
+                    .unwrap();
+                let new_heap_ptr = heap_ptr;
+            }
+        }
+        //log::debug!("init: heap_ptr = {:#x}, size = {:#?}",new_heap_ptr,init_heap_size);
+        self.balloc.lock().init(new_heap_ptr, init_heap_size);
     }
 
     /// Add the given region to the allocator.
     ///
     /// It will add the whole region to the byte allocator.
     pub fn add_memory(&self, start_vaddr: usize, size: usize) -> AllocResult {
+        //log::debug!("add memory: start_vaddr = {:#x}, size = {:#?}",start_vaddr,size);
         self.balloc.lock().add_memory(start_vaddr, size)
     }
 
@@ -116,24 +133,29 @@ impl GlobalAllocator {
         let mut balloc = self.balloc.lock();
         loop {
             if let Ok(ptr) = balloc.alloc(size, align_pow2) {
+                //log::debug!("successfully alloc: {:#x}",ptr);
                 return Ok(ptr);
             } else {
                 //申请时要比原始size大一点
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "alloc-mimalloc")]{
-                        let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
-                            .next_power_of_two()
-                            .max(PAGE_SIZE);
-                    } else{
                         // mimalloc中，申请的内存必须是4MB对齐的，而且要是size的至少8/7倍
                         let expand_size = (size * 8 / 7 + align_pow2 + 6 * size_of::<usize>())
                             .next_power_of_two()
                             .max(MIN_HEAP_SIZE);
+                        // let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
+                        // let new_heap_ptr = heap_ptr;
+                        let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)?;
+                        let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
+                    } else{
+                        let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
+                            .next_power_of_two()
+                            .max(PAGE_SIZE);
+                        let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
+                        let new_heap_ptr = heap_ptr;
                     }
                 }
-                //可以支持动态扩展一片内存，可以与之前的内存不连续
-                let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
-                balloc.add_memory(heap_ptr, expand_size)?;
+                balloc.add_memory(new_heap_ptr, expand_size)?;
             }
         }
     }
@@ -146,8 +168,9 @@ impl GlobalAllocator {
     ///
     /// [`alloc`]: GlobalAllocator::alloc
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
-        //log::debug!("dealloc: {:#?} {:#?}",size,align_pow2);
+        //log::debug!("dealloc: {:#x} {:#?} {:#?}",pos,size,align_pow2);
         self.balloc.lock().dealloc(pos, size, align_pow2);
+        //log::debug!("successfully dealloc");
     }
 
     /// Allocates contiguous pages.

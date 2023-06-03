@@ -65,16 +65,21 @@ pub fn test_vec_2(n: usize, m: usize) {
     println!("test_vec2() begin...");
     let mut v: Vec<Vec<usize>> = Vec::new();
     for _ in 0..n {
+        //println!("{:#?}",i);
         let mut tmp: Vec<usize> = Vec::with_capacity(m);
         for _ in 0..m {
             tmp.push(rand_usize());
         }
+        //println!("*********");
         tmp.sort();
         for j in 0..m - 1 {
             assert!(tmp[j] <= tmp[j + 1]);
         }
+        //println!("&&&");
         v.push(tmp);
     }
+
+    //println!("******************************************************");
 
     let mut p: Vec<usize> = Vec::with_capacity(n);
     for i in 0..n {
@@ -132,11 +137,11 @@ pub fn test_vec_3(n: usize, k1: usize, k2: usize) {
 pub fn basic_test() {
     println!("Basic alloc test begin...");
     let t0 = libax::time::Instant::now();
-    test_vec(3000000);
-    test_vec_2(30000, 64);
-    test_vec_2(7500, 520);
-    test_btree_map(50000);
-    test_vec_3(10000, 32, 64);
+    test_vec(1000000);
+    test_vec_2(10000, 64);
+    test_vec_2(500, 520);
+    test_btree_map(10000);
+    test_vec_3(3000, 32, 64);
     let t1 = libax::time::Instant::now();
     println!("time: {:#?}", t1.duration_since(t0));
     println!("Basic alloc test OK!");
