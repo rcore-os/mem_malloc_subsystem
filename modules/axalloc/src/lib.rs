@@ -19,7 +19,13 @@ use core::mem::size_of;
 use spinlock::SpinNoIrq;
 
 const PAGE_SIZE: usize = 0x1000;
-const MIN_HEAP_SIZE: usize = 0x8000; // 32 K
+cfg_if::cfg_if! {
+    if #[cfg(feature = "alloc-mimalloc")]{
+        const MIN_HEAP_SIZE: usize = 0x400000; // 4 M
+    } else{
+        const MIN_HEAP_SIZE: usize = 0x8000; // 32 K
+    }
+}
 
 pub use page::GlobalPage;
 
@@ -38,6 +44,8 @@ cfg_if::cfg_if! {
         pub(crate) type Allocator = allocator::TLSFAllocator;
     } else if #[cfg(feature = "alloc-tlsf-c")] {
         pub(crate) type Allocator = allocator::TLSFCAllocator;
+    } else if #[cfg(feature = "alloc-mimalloc")] {
+        pub(crate) type Allocator = allocator::MiAllocator;
     }
 }
 
@@ -111,10 +119,19 @@ impl GlobalAllocator {
                 return Ok(ptr);
             } else {
                 //申请时要比原始size大一点
-                let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
-                    .next_power_of_two()
-                    .max(PAGE_SIZE);
-                //tlsf可以支持动态扩展一片内存，可以与之前的内存不连续
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "alloc-mimalloc")]{
+                        let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
+                            .next_power_of_two()
+                            .max(PAGE_SIZE);
+                    } else{
+                        // mimalloc中，申请的内存必须是4MB对齐的，而且要是size的至少8/7倍
+                        let expand_size = (size * 8 / 7 + align_pow2 + 6 * size_of::<usize>())
+                            .next_power_of_two()
+                            .max(MIN_HEAP_SIZE);
+                    }
+                }
+                //可以支持动态扩展一片内存，可以与之前的内存不连续
                 let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE)?;
                 balloc.add_memory(heap_ptr, expand_size)?;
             }

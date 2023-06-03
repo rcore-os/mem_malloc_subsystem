@@ -51,6 +51,7 @@ members = [
     "crates/basic_allocator",
     "crates/tlsf_allocator",
     "crates/allocator_test",
+    "crates/mimalloc_allocator",
 
     "modules/axalloc",
     "modules/axconfig",
