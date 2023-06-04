@@ -376,11 +376,35 @@ fn slab_alloc_test() {
     }
 }
 
+fn mi_alloc_test() {
+    srand(2333);
+    unsafe {
+        GLOBAL_ALLOCATOR.init_heap();
+    }
+    println!("mi alloc test:");
+    unsafe {
+        GLOBAL_ALLOCATOR.init_mi();
+    }
+    //align_test();
+    basic_test();
+    mi_test();
+    malloc_large_test();
+    glibc_bench_test();
+    //multi_thread_test();
+    //multi_thread_c_test();
+    println!("mi alloc test passed!");
+    println!("*****************************");
+    unsafe {
+        GLOBAL_ALLOCATOR.init_system();
+    }
+}
+
 #[test]
 fn test_start() {
     system_alloc_test();
     buddy_fit_alloc_test();
     slab_alloc_test();
+    mi_alloc_test();
     first_fit_alloc_test();
     best_fit_alloc_test();
     worst_fit_alloc_test();

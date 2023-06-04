@@ -79,6 +79,7 @@ impl Heap {
     pub fn create_small_segment(&mut self) -> bool{
         //log::debug!("create small segment: {:#x} {:#x}",self.unused_begin,self.unused_end);
         if self.unused_begin == self.unused_end{
+            //log::debug!("failed to create a small segment");
             return false;
         }
         let mut seg_addr = SegmentPointer{
@@ -99,7 +100,9 @@ impl Heap {
     /// 新建一个medium类型的segment，并将其中的page塞入heap的tmp_page
     /// 从unused_begin中取4MB内存，如果不够则返回false
     pub fn create_medium_segment(&mut self) -> bool{
+        //log::debug!("create medium segment: {:#x} {:#x}",self.unused_begin,self.unused_end);
         if self.unused_begin == self.unused_end{
+            //log::debug!("failed to create a medium segment");
             return false;
         }
         let mut seg_addr = SegmentPointer{
@@ -120,6 +123,7 @@ impl Heap {
     /// 如果没有再从unused_begin中取内存
     /// 如果还没有则返回false
     pub fn create_huge_segment(&mut self,size: usize) -> bool{
+        //log::debug!("create huge segment: {:#?} {:#x} {:#x} {:#x} {:#x}",size,self.unused_begin,self.unused_end,self.unused_begin_tmp,self.unused_end_tmp);
         assert!(
             size % MIN_SEGMENT_SIZE == 0,
             "Huge segment size should be a multiple of 4MB"
@@ -134,6 +138,7 @@ impl Heap {
             self.unused_begin += size;
         }
         else{
+            //log::debug!("failed to create a huge segment");
             return false;
         }
         let mut seg_addr = SegmentPointer{
@@ -198,7 +203,7 @@ impl Heap {
 
 
         let idx = get_queue_id(size);
-        // log::debug!("alloc: {:#?} {:#?}, idx = {:#?}",layout.size(),size,idx);
+        //log::debug!("alloc: {:#?} {:#?}, idx = {:#?}",layout.size(),size,idx);
         // 找一个page
         // 首先找现成的，如果没有就去找未使用的
         let mut page = self.get_mut_ref().get_page(idx,size);

@@ -137,6 +137,7 @@ impl GlobalAllocator {
                 //log::debug!("successfully alloc: {:#x}",ptr);
                 return Ok(ptr);
             } else {
+                //log::debug!("failed to alloc. try to expand heap...");
                 //申请时要比原始size大一点
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "alloc-mimalloc")]{
@@ -146,9 +147,10 @@ impl GlobalAllocator {
                             .max(MIN_HEAP_SIZE);
                         //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
                         //let new_heap_ptr = heap_ptr;
-                        //log::debug!("{:#x} {:#?}",new_heap_ptr,expand_size);
+                        //log::debug!("*** {:#?}",expand_size);
                         let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)?;
                         let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
+                        //log::debug!("{:#x} {:#?}",new_heap_ptr,expand_size);
                     } else{
                         let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
                             .next_power_of_two()

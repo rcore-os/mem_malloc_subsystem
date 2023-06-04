@@ -8,6 +8,7 @@ int get_random(int xmin,int xmax){
 int main() {
   printf("malloc-large test begin...\n");
   //qemu里的内存只有不到128MB，但实际上超过64MB就容易GG
+
   static const int kNumBuffers = 10;
   static const size_t kMinBufferSize = 2 * 1024 * 1024;//2MB
   static const size_t kMaxBufferSize = 5 * 1024 * 1024;//5MB
@@ -20,9 +21,11 @@ int main() {
   srand(42);
   static const int kNumIterations = 100000;
   //const auto start = std::chrono::steady_clock::now();
+
   for (int i = 0; i < kNumBuffers; ++i){
     buffers[i] = malloc(kMinBufferSize);
   }
+
   //printf("*****\n");
   for (int i = 0; i < kNumIterations; ++i) {
     int buffer_idx = get_random(0, kNumBuffers - 1);
@@ -37,6 +40,7 @@ int main() {
   for(int i = 0;i < kNumBuffers;++i){
     free(buffers[i]);
   }
+
   printf("malloc-large test end!\n");
   //const auto end = std::chrono::steady_clock::now();
   //const auto num_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
