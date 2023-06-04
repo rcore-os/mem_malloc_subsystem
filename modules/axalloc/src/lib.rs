@@ -93,7 +93,7 @@ impl GlobalAllocator {
                 // mimalloc中，申请的内存必须是4MB对齐的
                 // alloc_pages似乎有bug，无法返回4MB对齐的地址
                 let heap_ptr = self
-                    .alloc_pages(init_heap_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)
+                    .alloc_pages(init_heap_size * 2 / PAGE_SIZE, PAGE_SIZE)
                     //.alloc_pages(init_heap_size / PAGE_SIZE, MIN_HEAP_SIZE)
                     .unwrap();
                 //let new_heap_ptr = heap_ptr;
@@ -148,7 +148,7 @@ impl GlobalAllocator {
                         //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
                         //let new_heap_ptr = heap_ptr;
                         //log::debug!("*** {:#?}",expand_size);
-                        let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)?;
+                        let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, PAGE_SIZE)?;
                         let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
                         //log::debug!("{:#x} {:#?}",new_heap_ptr,expand_size);
                     } else{

@@ -55,6 +55,7 @@ impl<const PAGE_SIZE: usize> PageAllocator for BitmapPageAllocator<PAGE_SIZE> {
     const PAGE_SIZE: usize = PAGE_SIZE;
 
     fn alloc_pages(&mut self, num_pages: usize, align_pow2: usize) -> AllocResult<usize> {
+        // log::debug!("alloc pages: {:#?} {:#?} {:#?}",num_pages,align_pow2,PAGE_SIZE);
         if align_pow2 % PAGE_SIZE != 0 || !align_pow2.is_power_of_two() {
             return Err(AllocError::InvalidParam);
         }

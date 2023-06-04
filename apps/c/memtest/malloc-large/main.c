@@ -9,7 +9,7 @@ int main() {
   printf("malloc-large test begin...\n");
   //qemu里的内存只有不到128MB，但实际上超过64MB就容易GG
 
-  static const int kNumBuffers = 10;
+  static const int kNumBuffers = 4;
   static const size_t kMinBufferSize = 2 * 1024 * 1024;//2MB
   static const size_t kMaxBufferSize = 5 * 1024 * 1024;//5MB
   char* buffers[kNumBuffers];
