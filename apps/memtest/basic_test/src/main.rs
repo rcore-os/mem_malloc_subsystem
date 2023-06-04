@@ -137,11 +137,11 @@ pub fn test_vec_3(n: usize, k1: usize, k2: usize) {
 pub fn basic_test() {
     println!("Basic alloc test begin...");
     let t0 = libax::time::Instant::now();
-    test_vec(1000000);
-    test_vec_2(10000, 64);
-    test_vec_2(500, 520);
-    test_btree_map(10000);
-    test_vec_3(3000, 32, 64);
+    test_vec(2000000);
+    test_vec_2(30000, 64);
+    test_vec_2(5000, 520);
+    test_btree_map(50000);
+    test_vec_3(10000, 32, 64);
     let t1 = libax::time::Instant::now();
     println!("time: {:#?}", t1.duration_since(t0));
     println!("Basic alloc test OK!");

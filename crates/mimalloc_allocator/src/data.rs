@@ -65,7 +65,9 @@ pub struct Page{
     pub block_size: usize,
     // free链表
     pub free_list: BlockPointer,
-    // 块结束地址
+    // page开始地址
+    pub begin_addr: usize,
+    // page结束地址
     pub end_addr: usize,
     // 尚未分配过的地址起点
     pub capacity: usize,
@@ -73,23 +75,25 @@ pub struct Page{
     pub prev_page: PagePointer,
     // page链表中的下一项
     pub next_page: PagePointer,
+    // 剩余块数
+    pub free_blocks_num: usize,
     
 }
 
-pub const TOT_QUEUE_NUM: usize = 74;
+pub const TOT_QUEUE_NUM: usize = 75;
 // >=4MB的页
 pub const HUGE_QUEUE: usize = 71;
 // 所有满的页
 pub const FULL_QUEUE: usize = 72;
 // 尚未分配的small page
 pub const FREE_SMALL_PAGE_QUEUE: usize = 73;
+// 尚未分配的medium page
+pub const FREE_MEDIUM_PAGE_QUEUE: usize = 74;
 
 /// mimalloc的heap结构
 pub struct MiHeap{
     // page链表
     pub pages: [PagePointer; TOT_QUEUE_NUM],
-    // 暂存一个medium/huge page
-    pub tmp_page: PagePointer,
 }
 
 /// lowbit
@@ -208,8 +212,7 @@ pub struct Segment{
 impl Page{
     /// init
     pub fn init(&mut self, size: usize, begin_addr: usize, end_addr: usize){
-        self.block_size = size;
-        self.capacity = begin_addr;
+        self.begin_addr = begin_addr;
         self.end_addr = end_addr;
         self.prev_page = PagePointer{
             addr: 0,
@@ -217,11 +220,35 @@ impl Page{
         self.next_page = PagePointer{
             addr: 0,
         };
+        self.init_size(size);
+    }
+
+    /// init size
+    /// 需要保证当前page是空的
+    pub fn init_size(&mut self,size: usize){
+        self.capacity = self.begin_addr;
+        self.block_size = size;
+        self.free_list = BlockPointer{
+            addr: 0,
+        };
+        if self.block_size == 0 {
+            self.free_blocks_num = 0;
+        } else {
+            self.free_blocks_num = (self.end_addr - self.begin_addr) / self.block_size;
+        }
+        //log::debug!("init size: {:#x} {:#x} {:#?} {:#?}",self.begin_addr,self.end_addr,self.block_size,self.free_blocks_num);
     }
 
     /// 是否已满
     pub fn is_full(&self) -> bool{
-        self.capacity + self.block_size > self.end_addr && self.free_list.addr == 0
+        self.free_blocks_num == 0
+        // self.capacity + self.block_size > self.end_addr && self.free_list.addr == 0
+    }
+
+    /// 是否已空
+    pub fn is_empty(&self) -> bool{
+        self.block_size != 0
+            && self.free_blocks_num == (self.end_addr - self.begin_addr) / self.block_size
     }
 
     /// 向free链表里插入一项
@@ -249,16 +276,24 @@ impl Page{
             let ans = self.free_list;
             self.pop_front();
             //log::debug!("get block end: {:#x}",self.free_list.addr);
+            self.free_blocks_num -= 1;
             ans.addr
         }
         else if self.capacity + self.block_size <= self.end_addr{
             let ans = self.capacity;
             self.capacity += self.block_size;
+            self.free_blocks_num -= 1;
             ans
         }
         else{
             0
         }
+    }
+
+    /// 归还一个block
+    pub fn return_block(&mut self,block: BlockPointer){
+        self.push_front(block);
+        self.free_blocks_num += 1;
     }
 
 }
@@ -299,9 +334,6 @@ impl MiHeap{
                 addr: 0,
             };
         }
-        self.tmp_page = PagePointer{
-            addr: 0,
-        };
     }
     /// 向链表里插入一个page
     pub fn insert_to_list(&mut self, idx: usize, mut page: PagePointer){
@@ -352,6 +384,14 @@ impl MiHeap{
     pub fn del_small_page(&mut self, page: PagePointer){
         self.delete_from_list(FREE_SMALL_PAGE_QUEUE, page);
     }
+    /// 加入一个尚未分配的medium page
+    pub fn add_medium_page(&mut self, page: PagePointer){
+        self.insert_to_list(FREE_MEDIUM_PAGE_QUEUE, page);
+    }
+    /// 删去一个尚未分配的medium page
+    pub fn del_medium_page(&mut self, page: PagePointer){
+        self.delete_from_list(FREE_MEDIUM_PAGE_QUEUE, page);
+    }
     /// 加入一个已满的small page
     pub fn add_full_page(&mut self, page: PagePointer){
         self.insert_to_list(FULL_QUEUE, page);
@@ -365,7 +405,31 @@ impl MiHeap{
     pub fn get_page(&mut self, idx: usize, size: usize) -> PagePointer{
         // 如果不是huge，直接取链首就可以
         if idx != HUGE_QUEUE{
-            self.pages[idx]
+            // 如果能找到现成的，就直接取
+            if self.pages[idx].addr != 0{
+                self.pages[idx]
+            }
+            // 否则，尝试从free队列中取
+            else if size < SMALL_PAGE_SIZE{
+                // small page
+                let mut page = self.pages[FREE_SMALL_PAGE_QUEUE];
+                if page.addr != 0{
+                    self.del_small_page(page);
+                    page.get_mut_ref().init_size(size);
+                    self.insert_to_list(idx, page);
+                }
+                page
+            }
+            else{
+                // medium page
+                let mut page = self.pages[FREE_MEDIUM_PAGE_QUEUE];
+                if page.addr != 0{
+                    self.del_medium_page(page);
+                    page.get_mut_ref().init_size(size);
+                    self.insert_to_list(idx, page);
+                }
+                page
+            }
         }
         else{
             let mut fit_size = 0;

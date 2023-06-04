@@ -96,8 +96,9 @@ impl GlobalAllocator {
                     .alloc_pages(init_heap_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)
                     //.alloc_pages(init_heap_size / PAGE_SIZE, MIN_HEAP_SIZE)
                     .unwrap();
-                // let new_heap_ptr = heap_ptr;
+                //let new_heap_ptr = heap_ptr;
                 let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
+                //log::debug!("{:#x} {:#?}",new_heap_ptr,init_heap_size);
             } else{
                 let heap_ptr = self
                     .alloc_pages(init_heap_size / PAGE_SIZE, PAGE_SIZE)
@@ -143,8 +144,9 @@ impl GlobalAllocator {
                         let expand_size = (size * 8 / 7 + align_pow2 + 6 * size_of::<usize>())
                             .next_power_of_two()
                             .max(MIN_HEAP_SIZE);
-                        // let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
-                        // let new_heap_ptr = heap_ptr;
+                        //let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
+                        //let new_heap_ptr = heap_ptr;
+                        //log::debug!("{:#x} {:#?}",new_heap_ptr,expand_size);
                         let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, MIN_HEAP_SIZE)?;
                         let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
                     } else{

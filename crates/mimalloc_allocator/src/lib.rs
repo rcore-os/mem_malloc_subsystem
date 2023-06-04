@@ -77,7 +77,7 @@ impl Heap {
     /// 新建一个small类型的segment，并将其中的page塞入heap的free链表中
     /// 从unused_begin中取4MB内存，如果不够则返回false
     pub fn create_small_segment(&mut self) -> bool{
-        log::debug!("create small segment: {:#x} {:#x}",self.unused_begin,self.unused_end);
+        //log::debug!("create small segment: {:#x} {:#x}",self.unused_begin,self.unused_end);
         if self.unused_begin == self.unused_end{
             return false;
         }
@@ -110,7 +110,7 @@ impl Heap {
         let page_addr = PagePointer{
             addr: &seg.pages[0] as *const Page as usize,
         };
-        self.get_mut_ref().tmp_page = page_addr;
+        self.get_mut_ref().add_medium_page(page_addr);
         self.unused_begin += MIN_SEGMENT_SIZE;
         true
     }
@@ -141,10 +141,12 @@ impl Heap {
         };
         let seg = seg_addr.get_mut_ref();
         seg.init(begin_addr, size, PageKind::HugePage);
-        let page_addr = PagePointer{
+        let mut page_addr = PagePointer{
             addr: &seg.pages[0] as *const Page as usize,
         };
-        self.get_mut_ref().tmp_page = page_addr;
+        // huge块，事先设定大小
+        page_addr.get_mut_ref().init_size(size - size_of::<Segment>());
+        self.get_mut_ref().insert_to_list(HUGE_QUEUE, page_addr);
         true
     }
 
@@ -196,8 +198,9 @@ impl Heap {
 
 
         let idx = get_queue_id(size);
-        //log::debug!("alloc: {:#?} {:#?}, idx = {:#?}",layout.size(),size,idx);
+        // log::debug!("alloc: {:#?} {:#?}, idx = {:#?}",layout.size(),size,idx);
         // 找一个page
+        // 首先找现成的，如果没有就去找未使用的
         let mut page = self.get_mut_ref().get_page(idx,size);
         //log::debug!("page addr: {:#x}",page.addr);
         // 如果没找到
@@ -212,46 +215,34 @@ impl Heap {
             else{
                 pagetype = PageKind::HugePage;
             }
-            // 找一个没分配的
+
+            // 尝试创建一个段，如果创建不了就寄了
             match pagetype{
-                PageKind::SmallPage => {page = self.get_mut_ref().pages[FREE_SMALL_PAGE_QUEUE];}
-                _ => {page = self.get_mut_ref().tmp_page;} 
-            }
-            // 还找不到，尝试创建一个段，如果创建不了就寄了
-            if page.addr == 0{
-                match pagetype{
-                    PageKind::SmallPage => {
-                        if !self.create_small_segment(){
-                            return Err(AllocError);
-                        }
-                        page = self.get_mut_ref().pages[FREE_SMALL_PAGE_QUEUE];
+                PageKind::SmallPage => {
+                    if !self.create_small_segment(){
+                        return Err(AllocError);
                     }
-                    PageKind::MediumPage => {
-                        if !self.create_medium_segment(){
-                            return Err(AllocError);
-                        }
-                        page = self.get_mut_ref().tmp_page;
+                }
+                PageKind::MediumPage => {
+                    if !self.create_medium_segment(){
+                        return Err(AllocError);
                     }
-                    PageKind::HugePage => {
-                        if !self.create_huge_segment(alignto(size + size_of::<Segment>(),MIN_SEGMENT_SIZE)){
-                            return Err(AllocError);
-                        }
-                        page = self.get_mut_ref().tmp_page;
+                }
+                PageKind::HugePage => {
+                    if !self.create_huge_segment(alignto(size + size_of::<Segment>(),MIN_SEGMENT_SIZE)){
+                        return Err(AllocError);
                     }
                 }
             }
-            
-            page.get_mut_ref().block_size = size;
-            match pagetype{
-                PageKind::SmallPage => {self.get_mut_ref().del_small_page(page);}
-                _ => {self.get_mut_ref().tmp_page = PagePointer{
-                    addr: 0,
-                };} 
+
+            //创建完后再找一次
+            page = self.get_mut_ref().get_page(idx,size);
+            if page.addr == 0{
+                return Err(AllocError);
             }
-            self.get_mut_ref().insert_to_list(idx, page);
         }
 
-        //log::debug!("page addr: {:#x} {:#x}",page.addr,page.get_ref().next_page.addr);
+        //log::debug!("page addr: {:#x} {:#x} {:#?}",page.addr,page.get_ref().next_page.addr,page.get_ref().free_blocks_num);
 
         // 获取一个block
         let addr = page.get_mut_ref().get_block();
@@ -293,7 +284,7 @@ impl Heap {
         // 先找到这个块所在的页
         let mut page = get_page(ptr);
         let flag = page.get_ref().is_full();
-        page.get_mut_ref().push_front(BlockPointer{
+        page.get_mut_ref().return_block(BlockPointer{
             addr: ptr,
         });
 
@@ -301,6 +292,17 @@ impl Heap {
         if flag && !page.get_ref().is_full(){
             self.get_mut_ref().del_full_page(page);
             self.get_mut_ref().insert_to_list(idx, page);
+        }
+
+        
+        // 如果一个块不是huge，且已经完全空了，就回收
+        if size < MEDIUM_PAGE_SIZE && page.get_ref().is_empty(){
+            self.get_mut_ref().delete_from_list(idx, page);
+            if size < SMALL_PAGE_SIZE{
+                self.get_mut_ref().add_small_page(page);
+            } else {
+                self.get_mut_ref().add_medium_page(page);
+            }
         }
 
         
