@@ -104,7 +104,7 @@ pub fn align_test() {
     let mut v2 = Vec::new();
     let mut v3 = Vec::new();
     let mut p = Vec::new();
-    let n = 50000;
+    let n = 100000;
     let mut cnt = 0;
     let mut nw = 0;
     for _ in 0..n {

@@ -59,9 +59,6 @@ cfg_if::cfg_if! {
 /// Currently, [`SlabByteAllocator`] is used as the byte allocator, while
 /// [`BitmapPageAllocator`] is used as the page allocator.
 pub struct GlobalAllocator {
-    //balloc: SpinNoIrq<SlabByteAllocator>,
-    //balloc: SpinNoIrq<BasicAllocator>,
-    //balloc: SpinNoIrq<TLSFCAllocator>,
     balloc: SpinNoIrq<Allocator>,
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 }
@@ -70,9 +67,6 @@ impl GlobalAllocator {
     /// Creates an empty [`GlobalAllocator`].
     pub const fn new() -> Self {
         Self {
-            //balloc: SpinNoIrq::new(SlabByteAllocator::new()),
-            //balloc: SpinNoIrq::new(BasicAllocator::new()),
-            //balloc: SpinNoIrq::new(TLSFCAllocator::new()),
             balloc: SpinNoIrq::new(Allocator::new()),
             palloc: SpinNoIrq::new(BitmapPageAllocator::new()),
         }
@@ -84,21 +78,16 @@ impl GlobalAllocator {
     /// a small region (32 KB) to initialize the byte allocator. Therefore,
     /// the given region must be larger than 32 KB.
     pub fn init(&self, start_vaddr: usize, size: usize) {
-        //log::debug!("init: start_vaddr = {:#x}, size = {:#?}",start_vaddr,size);
         assert!(size > MIN_HEAP_SIZE);
         let init_heap_size = MIN_HEAP_SIZE;
         self.palloc.lock().init(start_vaddr, size);
         cfg_if::cfg_if! {
             if #[cfg(feature = "alloc-mimalloc")]{
                 // mimalloc中，申请的内存必须是4MB对齐的
-                // alloc_pages似乎有bug，无法返回4MB对齐的地址
                 let heap_ptr = self
-                    //.alloc_pages(init_heap_size * 2 / PAGE_SIZE, PAGE_SIZE)
                     .alloc_pages(init_heap_size / PAGE_SIZE, MIN_HEAP_SIZE)
                     .unwrap();
                 let new_heap_ptr = heap_ptr;
-                //let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
-                //log::debug!("{:#x} {:#?}",new_heap_ptr,init_heap_size);
             } else{
                 let heap_ptr = self
                     .alloc_pages(init_heap_size / PAGE_SIZE, PAGE_SIZE)
@@ -106,7 +95,6 @@ impl GlobalAllocator {
                 let new_heap_ptr = heap_ptr;
             }
         }
-        //log::debug!("init: heap_ptr = {:#x}, size = {:#?}",new_heap_ptr,init_heap_size);
         self.balloc.lock().init(new_heap_ptr, init_heap_size);
     }
 
@@ -114,7 +102,6 @@ impl GlobalAllocator {
     ///
     /// It will add the whole region to the byte allocator.
     pub fn add_memory(&self, start_vaddr: usize, size: usize) -> AllocResult {
-        //log::debug!("add memory: start_vaddr = {:#x}, size = {:#?}",start_vaddr,size);
         self.balloc.lock().add_memory(start_vaddr, size)
     }
 
@@ -128,16 +115,13 @@ impl GlobalAllocator {
     /// `align_pow2` must be a power of 2, and the returned region bound will be
     ///  aligned to it.
     pub fn alloc(&self, size: usize, align_pow2: usize) -> AllocResult<usize> {
-        //log::debug!("alloc: {:#?} {:#?}",size,align_pow2);
         //默认alloc请求都是8对齐，现在TLSF已经可以支持其他字节的对齐
         // simple two-level allocator: if no heap memory, allocate from the page allocator.
         let mut balloc = self.balloc.lock();
         loop {
             if let Ok(ptr) = balloc.alloc(size, align_pow2) {
-                //log::debug!("successfully alloc: {:#x}",ptr);
                 return Ok(ptr);
             } else {
-                //log::debug!("failed to alloc. try to expand heap...");
                 //申请时要比原始size大一点
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "alloc-mimalloc")]{
@@ -147,10 +131,6 @@ impl GlobalAllocator {
                             .max(MIN_HEAP_SIZE);
                         let heap_ptr = self.alloc_pages(expand_size / PAGE_SIZE, MIN_HEAP_SIZE)?;
                         let new_heap_ptr = heap_ptr;
-                        //log::debug!("*** {:#?}",expand_size);
-                        //let heap_ptr = self.alloc_pages(expand_size * 2 / PAGE_SIZE, PAGE_SIZE)?;
-                        //let new_heap_ptr = (heap_ptr + MIN_HEAP_SIZE - 1) / MIN_HEAP_SIZE * MIN_HEAP_SIZE;
-                        //log::debug!("{:#x} {:#?}",new_heap_ptr,expand_size);
                     } else{
                         let expand_size = (size + align_pow2 + 6 * size_of::<usize>())
                             .next_power_of_two()
@@ -172,9 +152,7 @@ impl GlobalAllocator {
     ///
     /// [`alloc`]: GlobalAllocator::alloc
     pub fn dealloc(&self, pos: usize, size: usize, align_pow2: usize) {
-        //log::debug!("dealloc: {:#x} {:#?} {:#?}",pos,size,align_pow2);
         self.balloc.lock().dealloc(pos, size, align_pow2);
-        //log::debug!("successfully dealloc");
     }
 
     /// Allocates contiguous pages.

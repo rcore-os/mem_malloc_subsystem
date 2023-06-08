@@ -385,7 +385,7 @@ fn mi_alloc_test() {
     unsafe {
         GLOBAL_ALLOCATOR.init_mi();
     }
-    //align_test();
+    align_test();
     basic_test();
     mi_test();
     malloc_large_test();

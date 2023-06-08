@@ -1,6 +1,7 @@
 use allocator::{AllocResult, BaseAllocator, ByteAllocator};
 use allocator::{
-    BasicAllocator, BuddyByteAllocator, SlabByteAllocator, TLSFAllocator, TLSFCAllocator, MiAllocator
+    BasicAllocator, BuddyByteAllocator, MiAllocator, SlabByteAllocator, TLSFAllocator,
+    TLSFCAllocator,
 };
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::mem::size_of;
@@ -239,10 +240,7 @@ impl GlobalAllocator {
             }
             AllocType::MiAlloc => {
                 FLAG = true;
-                self.mi_alloc
-                    .lock()
-                    .unwrap()
-                    .dealloc(pos, size, align_pow2);
+                self.mi_alloc.lock().unwrap().dealloc(pos, size, align_pow2);
                 FLAG = false;
             }
         }

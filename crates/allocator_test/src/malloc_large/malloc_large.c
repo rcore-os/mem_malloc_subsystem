@@ -10,9 +10,9 @@ void malloc_large_test_start(CallBackMalloc _cb1,CallBackMallocAligned _cb2,Call
   cb1_malloc_large = _cb1;
   cb2_malloc_large = _cb2;
   cb3_malloc_large = _cb3;
-  static const int kNumBuffers = 8;
+  static const int kNumBuffers = 10;
   static const size_t kMinBufferSize = 2 * 1024 * 1024;//2MB
-  static const size_t kMaxBufferSize = 5 * 1024 * 1024;//5MB
+  static const size_t kMaxBufferSize = 15 * 1024 * 1024;//15MB
   char* buffers[kNumBuffers];
   int size[kNumBuffers];
 
