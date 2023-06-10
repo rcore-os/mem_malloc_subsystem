@@ -96,3 +96,13 @@ make A=apps/c/memtest ARCH=riscv64 LOG=info run
 
 ![multi_thread_c](pic\multi_thread_c.png)
 
+
+
+#### TODO
+
+（1）完成Rust版本mimalloc的多线程支持；
+
+（2）将C语言的mimalloc实现接入arceos   仓库链接：https://github.com/microsoft/mimalloc
+
+（3）增加更多多线程测例，以测试mimalloc对多线程的支持   仓库链接：https://github.com/daanx/mimalloc-bench
+
