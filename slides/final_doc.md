@@ -205,10 +205,10 @@ Segment以4MB对齐，承载各种Page
 ##### (7) Multi_thread_c_test
 
 - C语言，自行编写
-
 - 功能大致类似于multi_thread_test
-
 - 测试C语言下的多线程内存分配
+
+上述测试用例和测试框架的构建完成于第9~15周。
 
 
 
@@ -236,7 +236,7 @@ make A=apps/c/memtest ARCH=riscv64 LOG=info run
 | 算法           | system | buddy | slab  | first fit | best fit | worst fit | TLSF C | TLSF Rust | mimalloc |
 | -------------- | ------ | ----- | ----- | --------- | -------- | --------- | ------ | --------- | -------- |
 | basic          | 0.361  | 8.251 | 0.584 | 0.346     | 1.79     | 14.557    | 0.346  | 0.35      | 0.336    |
-| align test     | 0.019  | 0     | 0     | 0         | 0        | 0         | 0.011  | 0.009     | 0.008    |
+| align test     | 0.019  | ——    | ——    | ——        | ——       | ——        | 0.011  | 0.009     | 0.008    |
 | multi thread   | 3.223  | 6.11  | 3.275 | 3.25      | 3.524    | 8.965     | 3.208  | 3.206     | 3.225    |
 | mitest         | 0.054  | 0.051 | 0.052 | 0.072     | 0.069    | 0.069     | 0.054  | 0.069     | 0.052    |
 | glibc bench    | 1.539  | 1.727 | 1.39  | 2.086     | 2.37     | 2.382     | 2.374  | 3.028     | 2.198    |
@@ -289,6 +289,14 @@ make A=apps/c/memtest ARCH=riscv64 LOG=info run
 
 
 
+#### 结果总结
+
+不同的算法在各个测试点上性能各有高低，没有占据绝对优势的算法
+
+就综合各方面表现而言，mimalloc的性能相对更优，且没有“短板”
+
+
+
 #### TODO
 
 （1）完成Rust版本mimalloc的多线程支持；
@@ -296,4 +304,24 @@ make A=apps/c/memtest ARCH=riscv64 LOG=info run
 （2）将C语言的mimalloc实现接入arceos   仓库链接：https://github.com/microsoft/mimalloc
 
 （3）增加更多多线程测例，以测试mimalloc对多线程的支持   仓库链接：https://github.com/daanx/mimalloc-bench
+
+
+
+#### Reference
+
+https://github.com/microsoft/mimalloc
+
+https://github.com/mattconte/tlsf
+
+https://github.com/daanx/mimalloc-bench
+
+http://www.gii.upv.es/tlsf/files/ecrts04_tlsf.pdf
+
+https://zhuanlan.zhihu.com/p/370239503
+
+https://www.microsoft.com/en-us/research/uploads/prod/2019/06/mimalloc-tr-v1.pdf
+
+https://doc.rust-lang.org/nomicon/ffi.html
+
+https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/unstable-book/language-features/global-allocator.html
 
