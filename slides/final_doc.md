@@ -80,7 +80,7 @@ O(1)的malloc与dealloc；
 
 支持动态添加和删除内存池；
 
-详细介绍见文档 `tlsf_note.md`。
+详细介绍见附录1。
 
 优点：单次操作复杂度严格O(1)；内碎块相对Buddy和slab更少
 
@@ -112,7 +112,9 @@ Segment以4MB对齐，承载各种Page
 
 每个线程用一个Heap作为mimalloc的控制结构，核心为维护不同block大小的Page链表
 
-详细介绍见文档 `mimalloc_note.md`。
+详细介绍见附录2。
+
+在已有的Rust实现中，简化了部分原本用于维护多线程的数据结构，如Page维护的块链表仅保留了free_list。
 
 优点：单次操作O(1)；连续分配时内存地址大致连续；速度较现在通用的内存分配器快约7%~14%；内碎块相对较小；
 
@@ -324,4 +326,270 @@ https://www.microsoft.com/en-us/research/uploads/prod/2019/06/mimalloc-tr-v1.pdf
 https://doc.rust-lang.org/nomicon/ffi.html
 
 https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/unstable-book/language-features/global-allocator.html
+
+
+
+
+
+#### 附录1：TLSF内存分配算法
+
+支持：O(1)的malloc与dealloc；每次分配的额外空间开销仅为4字节（默认4字节对齐，64位机器则改为8字节）；内存碎片较少；支持动态添加和删除内存池；不保证线程安全，需要调用者保证
+
+Segregated Fit算法：基于一组链表，每个链表包含特定大小范围的空闲块
+
+Two Level：采用两级链表机制
+
+第1层：将块按照2的幂进行分类：如 $[2^4,2^5),[2^5,2^6)$ ……
+
+第1层链表的指针指向一组第2层链表的表头，分别表示将这个区间进一步细分
+
+如 $[2^6,2^7)$ 可进一步细分为 $[2^6,2^6+2^4),[2^6+2^4,2^6+2^5),[2^6+2^5,2^6+3*2^4),[2^6+3*2^4,2^7)$
+
+由一个大小定位到内存块，可以通过先取log2获得第1级位置，再取次高的若干位二进制（上述例子为2位）来实现
+
+
+
+![tlsf](D:/Desktop/codes/git/arceos/slides/pic/tlsf.png)
+
+
+
+tlsf内存块头结构：
+
+```cpp
+typedef struct block_header_t//tlsf内存块头结构
+{
+	/* Points to the previous physical block. */
+	struct block_header_t* prev_phys_block;//内存地址上上一个块的位置指针
+	//只存储上一个块的位置，是因为下一个块可以根据这个块的大小算出来
+
+	/* The size of this block, excluding the block header. */
+	size_t size;//这个块的大小，注意是不包括分配时要带的8字节块头大小的
+	//因为块大小是4对齐的，所以用低2位分别表示这个块和上一个块是否是free的
+
+	/* Next and previous free blocks. */
+	struct block_header_t* next_free;//free链表中的下一个块
+	struct block_header_t* prev_free;//free链表中的上一个块
+	//free链表只对free状态的块使用
+} block_header_t;
+```
+
+
+
+整个tlsf的控制头结构：
+
+```cpp
+typedef struct control_t//整个tlsf的控制结构
+{
+	/* Empty lists point at this block to indicate they are free. */
+	block_header_t block_null;//空块
+
+	/* Bitmaps for free lists. */
+	unsigned int fl_bitmap;//一级链表的bitmap，标记每个一级链表是否非空
+	unsigned int sl_bitmap[FL_INDEX_COUNT];//二级链表的bitmap，标记每个二级链表是否非空
+
+	/* Head of free lists. */
+	block_header_t* blocks[FL_INDEX_COUNT][SL_INDEX_COUNT];//二级链表结构
+    //SL_INDEX_COUNT=32表示二级链表将一级链表的一个区间拆分成了32段，也就是要根据最高位后的5个二进制位来判断
+} control_t;
+```
+
+
+
+将大小小于256的块单独维护（位于一级链表的0下标处，也要按照第二级链表维护），其余块按照两级链表结构维护
+
+
+
+malloc的策略：
+
+1、先将所需size上取整到下一个二级块大小的下界，并找到相应的一、二级链表；
+
+2、查询是否存在一个符合要求的块：先在相应的一级链表中找：从给定的二级链表开始第一个非空的二级链表，如果存在就从中取一个块；如果不存在，就向上找第一个非空的一级链表，再找其中第一个非空的二级链表；
+
+3、如果分配出去块比所需内存大很多，可以split，要求至少大一个block_header_t的大小（32字节）；
+
+4、如果malloc时额外要求地址对齐（大于8字节）：则要找到一个足够大的块，使得在块上找到对齐的地址后，前面留下的部分拆成一个更小的块（至少32字节，如果不足则将分配出去的地址继续向后移动），之后仍然有足够的空间。
+
+
+
+free的策略：物理上连续的空闲内存块要前后合并，然后插入回相应的二级链表中
+
+
+
+realloc的策略：先看当前块和物理上的下一块（如果空闲的话）加起来够不够用
+
+如果够用，就直接与下一块合并（如果空闲的话）再在原位重新分配
+
+否则，直接重新alloc然后free掉原来的
+
+
+
+
+
+#### 附录2：mimalloc内存分配算法
+
+保证线程安全，但无需使用锁，只需原子操作；
+
+用free-list的分页思想，提高内存的连续性；
+
+使用分离适配的思想，每个页维护相同大小的内存块；
+
+O(1)的单次操作，83%以上的内存利用率，在benchmark上相较于tcmalloc和jemalloc快7%~14%
+
+
+
+每个页维护3个链表：空闲块链表free、本线程回收链表local_free，其他线程回收链表thread_free
+
+维护local_free而不是直接回收到free里应该是基于效率的考虑（并非每次free都要收集，而是定期通过调用page_collect来一次性收集）；thread_free的设立是为了线程安全
+
+需要分配时，先从free中取，若free为空，则再调用page_collect：先去尝试收集thread_free，其次再收集local_free。这一机制可以确保page_collect会被定期调用到，可以同时保证效率和不产生浪费的内存块
+
+```cpp
+void* _mi_page_malloc(mi_heap_t* heap, mi_page_t* page, size_t size) {
+    //从一页中分配内存块的大致逻辑
+  mi_block_t* const block = page->free;
+  if (block == NULL) {//当free链表为空时，进入generic
+    return _mi_malloc_generic(heap, size);      // slow path
+  }
+  // pop from the free list
+  //fast path，直接取链表头即可
+  page->used++;
+  page->free = block->next;
+  return block;
+}
+
+void* mi_malloc_generic(mi_heap_t* heap, size_t size) {
+    size_t idx = size_class(size);      // 计算得到 size class
+    mi_page_queue_t* queue = heap->pages[idx];  // 取相应的page队列
+    foreach(page in queue) { // 注：这里还需要限制枚举页的数量，以确保单次调用的时间开销有上限
+        page_collect(page);     // 收集页里的可用内存
+        if (page->used == 0) {  // 整个页都空闲，回收掉
+            page_free(page);
+        } else if (page->free != NULL) {    // 收集完如果有可用内存，则重回分配入口
+            return mi_heap_malloc(heap, size);
+        }
+    }
+    // 到这儿表明找不到可用的page，从segment分配一个新鲜的page
+    ...
+}
+
+void page_collect(mi_page_t* page) { // 收集页里的可用内存
+  // collect the thread free list
+  if (mi_page_thread_free(page) != NULL) {  // quick test to avoid an atomic operation
+    _mi_page_thread_free_collect(page);//先收集thread_free
+  }
+  // and the local free list
+  if (page->local_free != NULL) {//如果上一步没收集到东西，再收集local_free
+    if (page->free == NULL) {
+      // usual case
+      page->free = page->local_free;
+      page->local_free = NULL;
+    }
+  }
+}
+```
+
+
+
+每个线程维护线程本地数据结构（段、堆、页），alloc时每个线程只能从自己的堆中分配空间，但是free时任何线程都可以free
+
+因此这里需要保证线程安全，为了避免加锁，采用thread_free链表：其他线程释放本线程的块时，通过原子操作插入到这个块的thread_free里：
+
+```cpp
+void atomic_push( block_t** list, block_t* block ) {
+  do { block->next = *list; }
+  while (!atomic_compare_and_swap(list, block, block->next));
+}
+
+atomic_push( &page->thread_free, p );
+```
+
+
+
+整个数据结构的组织架构如下：
+
+![mimalloc_pic1](D:/Desktop/codes/git/arceos/slides/pic/mimalloc_pic1.png)
+
+每个segment以及pages链表的结构如下：
+
+![mimalloc_pic2](D:/Desktop/codes/git/arceos/slides/pic/mimalloc_pic2.png)
+
+每个page的结构如下：
+
+![mimalloc_pic3](D:/Desktop/codes/git/arceos/slides/pic/mimalloc_pic3.png)
+
+每个线程维护一个heap：其中的pages字段是一个数组，是根据内存块size大小维护的若干个page的队列（链表），不超过1024的内存块又被pages_direct指针指向，以快速获取（找一个page时，查pages_direct表相比查pages表更快）。
+
+每个segment的开头是一段元数据，pages字段存储的是其中的page的元数据，包括线程号、块大小、free链表、local链表、thread链表等信息；segment的剩余部分就是每个page的地址空间，对于空闲的块，用next指针指向它在链表中的下一个块。
+
+
+
+alloc的逻辑如下：
+
+```cpp
+void* mi_malloc( size_t n ) {
+    heap_t* heap = mi_get_default_heap();   // 取线程相关的堆
+    return mi_heap_malloc(heap, size)
+}
+
+void* mi_heap_malloc(mi_heap_t* heap, size_t size) {
+    if (size <= MI_SMALL_SIZE_MAX) {    // 如果<=1024，进入小对象分配
+        return mi_heap_malloc_small(heap, size);
+    } else {    // 否则进行通用分配
+        return mi_malloc_generic(heap, size)
+    }
+}
+
+void* mi_heap_malloc_small(mi_heap_t* heap, size_t size) {
+    page_t* page = heap->pages_direct[(size+7)>>3]; // 从pages_direct快速得到可分配的页
+    block_t* block = page->free;
+    if (block != NULL) {                // fast path
+        page->free = block->next;
+        page->used++;
+        return block;
+    } else {
+        return mi_malloc_generic(heap, size); // slow path
+    }
+}
+```
+
+调用mi_malloc_generic是一个比较慢的过程，程序会在这一阶段进行一些回收工作。程序机制确保它会被每间隔一段时间调用，使得操作的复杂度可以被均摊。
+
+
+
+free的逻辑如下，注意如何通过地址找到内存块所在的段和页，以及对于本线程和其他线程的不同处理：
+
+```cpp
+void mi_free(void* p) {
+    segment_t* segment = (segment_t*)((uintptr_t)p & ~(4*MB));  // 找到对应的segment
+    if (segment==NULL) return;
+    // 找到对应的page，这是简化过的，第1个page要特殊处理。
+    // 因为segment等分成N个page，这里只需要取相对地址，然后除去page的大小，即得到page的索引。
+    page_t* page = &segment->pages[(p - segment) >> segment->page_shift];
+    block_t* block = (block_t*)p;
+
+    if (thread_id() == segment->thread_id) { // 相同线程，释放到local_free
+        block->next = page->local_free;
+        page->local_free = block;
+        page->used--;
+        if (page->used == 0) page_free(page);
+    }
+    else { // 不同线程，释放到 thread_free
+        atomic_push(&page->thread_free, block);
+    }
+}
+```
+
+
+
+heap的full存储的是当前已满的页，这是为了保证分配时的效率，避免每次分配时都要遍历所有已满的页面（否则会带来最大30%的效率损失）。
+
+当一个也从不满变成满时，将其从其所在的pages队列中取出，放进full队列
+
+当一个已满的页被重新释放时，要将其改回不满的状态，但由于释放可能是其他线程引起的，要考虑线程安全问题（要在线程安全的前提下通知原线程这个块已经不再满了），用thread_delayed机制来解决。
+
+一个页用2位二进制来表示状态：当一个页不满时，状态为normal，其他线程的free就将内存块正常插入到这个页的thread_free链表里；但如果已满，状态为delayed，其他线程的free就要插入到原线程的heap的thread_delayed_free链表里，并将状态改为delaying；delaying状态的page在其他线程的free时仍然插入到这个页的thread_free链表里，以保证thread_delayed_free链表里不存在来自相同page的内存块（这同样是为了确保效率，否则会带来最大30%的效率损失）。
+
+等原线程的mi_malloc_generic时，就会遍历这个thread_delayed_free链表，把其中的内存块所在的page重新设为normal状态，并将其从full队列移回到原来的pages队列。
+
+更多的安全措施：如初始建立free链表时以随机顺序连接等，经测试这仅会使程序的性能相较无安全措施的版本慢3%左右。
 

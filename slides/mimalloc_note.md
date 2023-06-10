@@ -80,15 +80,15 @@ atomic_push( &page->thread_free, p );
 
 整个数据结构的组织架构如下：
 
-![image-20230423000827253](C:\Users\liuzhangfeiabc\AppData\Roaming\Typora\typora-user-images\image-20230423000827253.png)
+![mimalloc_pic1](pic\mimalloc_pic1.png)
 
 每个segment以及pages链表的结构如下：
 
-<img src="C:\Users\liuzhangfeiabc\AppData\Roaming\Typora\typora-user-images\image-20230423004710403.png" alt="image-20230423004710403" style="zoom:67%;" />
+![mimalloc_pic2](pic\mimalloc_pic2.png)
 
 每个page的结构如下：
 
-<img src="C:\Users\liuzhangfeiabc\AppData\Roaming\Typora\typora-user-images\image-20230423004755058.png" alt="image-20230423004755058" style="zoom:67%;" />
+![mimalloc_pic3](pic\mimalloc_pic3.png)
 
 每个线程维护一个heap：其中的pages字段是一个数组，是根据内存块size大小维护的若干个page的队列（链表），不超过1024的内存块又被pages_direct指针指向，以快速获取（找一个page时，查pages_direct表相比查pages表更快）。
 

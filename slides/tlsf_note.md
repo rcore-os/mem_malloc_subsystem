@@ -14,9 +14,9 @@ Two Level：采用两级链表机制
 
 由一个大小定位到内存块，可以通过先取log2获得第1级位置，再取次高的若干位二进制（上述例子为2位）来实现
 
-<img src="C:\Users\liuzhangfeiabc\AppData\Roaming\Typora\typora-user-images\image-20230421202506388.png" alt="image-20230421202506388" style="zoom:50%;" />
 
-<img src="C:\Users\liuzhangfeiabc\AppData\Roaming\Typora\typora-user-images\image-20230421202525282.png" alt="image-20230421202525282" style="zoom:80%;" />
+
+![tlsf](pic\tlsf.png)
 
 
 
